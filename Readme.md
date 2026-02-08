@@ -3,7 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**EzSQL** is an intermediate representation (IR) system that bridges the gap between SQL queries and natural language. Originally based on the [EzSQL paper](https://arxiv.org/abs/2305.xxxxx), this implementation is specifically adapted for **blockchain analytics queries** from platforms like Dune Analytics.
+**EzSQL** is an intermediate representation (IR) system that bridges the gap between SQL queries and natural language. Originally based on the [EzSQL paper](https://arxiv.org/html/2411.18923v2), this implementation is specifically adapted for **blockchain analytics queries** from platforms like Dune Analytics.
 
 ## 🎯 Key Features
 
