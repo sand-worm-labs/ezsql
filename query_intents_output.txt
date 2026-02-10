@@ -1,0 +1,52 @@
+--- Query ID: 5839999 ---
+Step 'exchange_rates': What is the date of the 'hour', minute' when the minute is greater than CAST('2025-09-24 12:00:00' as timestamp) and the token is lower than 'weeth' group by 1?
+Step 'dex_rates': What is the time, median_price_rate of the lrt_eth_rate when the block_time is greater than CAST('2025-09-24 12:00:00' AS TIMESTAMP), and the token_symbol is 'weeth' and the amount_usd is greater than 100 group by 1) as x?
+Step 'get_details_joined': What is the d.time of the exchange_rates as er on d.time is er.time?
+Finally: What is the exchange_rates when the minute is greater than CAST('2025-09-24 12:00:00' as timestamp) and the token_symbol is 'weeth', and the amount_usd is greater than 100 GROUP BY 1) AS x), get_details_joined when the block_time is greater than CAST('2025-09-24 12:00:00' as timestamp), and the token_symbol is '
+--------------------------------------------------
+
+--- Query ID: 5840004 ---
+Finally: What is the trades_count, date of the dune.tokenmetricsai.daily_trades order by date ASC?
+--------------------------------------------------
+
+--- Query ID: 5839998 ---
+Step 'exchange_rates': What is the date of the 'day', minute' when the minute is greater than CAST('2025-09-24 00:00:00' as timestamp) and the token is lower than 'weeth' group by 1?
+Step 'dex_rates': What is the time, median_price_rate of the lrt_eth_rate when the block_time is greater than CAST('2025-09-24 00:00:00' AS TIMESTAMP), and the token_symbol is 'weeth' and the amount_usd is greater than 100 group by 1) as x?
+Step 'get_details_joined': What is the d.time of the exchange_rates as er on d.time is er.time?
+Finally: What is the exchange_rates when the minute is greater than CAST('2025-09-24 00:00:00' as timestamp) and the token_symbol is 'weeth', and the amount_usd is greater than 100 GROUP BY 1) AS x), get_details_joined when the block_time is greater than CAST('2025-09-24 00:00:00' as timestamp), and the token_sym
+--------------------------------------------------
+
+--- Query ID: 5839996 ---
+Step 'exchange_rates': What is the date of the 'hour', minute' when the minute is greater than CAST('2025-09-24 12:00:00' as timestamp) and the token is lower than 'weeth' group by 1?
+Step 'dex_rates': What is the time, median_price_rate of the lrt_eth_rate when the block_time is greater than CAST('2025-09-24 12:00:00' AS TIMESTAMP), and the token_symbol is 'weeth' and the amount_usd is greater than 100 group by 1) as x?
+Step 'get_details_joined': What is the d.time of the exchange_rates as er on d.time is er.time?
+Finally: What is the exchange_rates when the minute is greater than CAST('2025-09-24 12:00:00' as timestamp) and the token_symbol is 'weeth', and the amount_usd is greater than 100 GROUP BY 1) AS x), get_details_joined when the block_time is greater than CAST('2025-09-24 12:00:00' as timestamp), and the token_symbol is '
+--------------------------------------------------
+
+--- Query ID: 5840008 ---
+Step 'last_score': What is the stream, miner, CAST(score) of the stream, block_time, ROW_NUMBER() OVER (PARTITION BY stream ORDER BY block_time DESC) as rn from (SELECT block_time, REGEXP_EXTRACT(log_message, 'Stream ([A-Za-z0-9]+) (from miner ([A-Za-z0-9]+))
+Finally: What is the last_score of the stream, miner, when the block_time, ROW_NUMBER() is over (partition by stream ORDER BY block_time DESC) as rn from (name the block_time, REGEXP_EXTRACT(log_message, 'Stream ([A-Za-z0-9]+) (from miner ([A-Za-z0-9]+)) got its score
+--------------------------------------------------
+
+--- Query ID: 5839995 ---
+Step 'exchange_rates': What is the date of the 'day', minute' when the minute is greater than CAST('2025-09-24 00:00:00' as timestamp) and the token is lower than 'weeth' group by 1?
+Step 'dex_rates': What is the time, median_price_rate of the lrt_eth_rate when the block_time is greater than CAST('2025-09-24 00:00:00' AS TIMESTAMP), and the token_symbol is 'weeth' and the amount_usd is greater than 100 group by 1) as x?
+Step 'get_details_joined': What is the d.time of the exchange_rates as er on d.time is er.time?
+Finally: What is the exchange_rates when the minute is greater than CAST('2025-09-24 00:00:00' as timestamp) and the token_symbol is 'weeth', and the amount_usd is greater than 100 GROUP BY 1) AS x), get_details_joined when the block_time is greater than CAST('2025-09-24 00:00:00' as timestamp), and the token_sym
+--------------------------------------------------
+
+--- Query ID: 5840023 ---
+Step 'POOLCREATED_TOPIC': What is the 0 AS x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118?
+Finally: What is the POOLCREATED_TOPIC AS (name the 0 AS x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118)?
+--------------------------------------------------
+
+--- Query ID: 5840026 ---
+Step 'mapping': What is the * for query_5836763?
+Step 'all_fees': What is the 'Aleph Zero' chain name, date, CAST(value AS DOUBLE) as daily_fees, token_symbol from dune.lamprosdao.dataset_aleph_zero_daily_transaction_fees UNION ALL SELECT 'Alienx' as chain_name, date, CAST(value AS DOUBLE) as daily_fees, token_sym
+Step 'token_prices': What is the 'Aleph Zero' chain name, 'AZERO' token_symbol, DATE(CAST(date AS TIMESTAMP)) as date, CAST(price_usd AS DOUBLE) as price_usd from dune.lamprosdao.dataset_azero_daily_price UNION ALL SELECT 'Alienx' AS chain_name, 'ETH' as token_sym
+Step 'filtered_fees': What is the * of the chain name that has a t(value) of t(value))?
+Step 'gross': What is the f.chain_name, f.date, (f.daily_fees * CAST(p.price_usd AS DOUBLE)) of daily_fees_usd, ROUND(AVG(f.daily_fees * CAST(p.price_usd AS DOUBLE)) OVER (partition by f.chain_name ORDER BY f.date ROWS BET
+Step 'all_settlement_fees': What is the 'Aleph Zero' as chain_name, block_date, sum of CAST(gas_used as double) * CAST(gas_price as double) / 1e18) settlement_fees from ethereum.transactions when "to" is 0?
+Finally: 'Aleph Zero' as chain_name, DATE(CAST(date AS TIMESTAMP)) as date, CAST(value AS DOUBLE) AS daily_fees, token_symbol FROM dune.lamprosdao.dataset_aleph_zero_daily_transaction_fees UNION ALL SELECT 'Appchain' AS chain_name, DATE(CAST(date AS TIMEST
+--------------------------------------------------
+

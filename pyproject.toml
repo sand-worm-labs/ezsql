@@ -1,0 +1,35 @@
+[project]
+name = "ezsql"
+version = "0.1.0"
+description = "Deterministic SQL-to-Intent translation pipeline"
+authors = [
+    {name = "Angry Coding", email = "mailidanielifechukwu@gmail.com"}
+]
+requires-python = ">=3.14,<3.15"
+
+dependencies = [
+    "sqlglot>=28.10.1,<29.0.0",
+    "rich>=14.3.2,<15.0.0",
+    "pandas>=3.0.0,<4.0.0",
+    "pyarrow>=23.0.0,<24.0.0",
+    "transformers>=5.1.0,<6.0.0",
+    "torch",
+    "sentencepiece>=0.2.1",
+    "protobuf"
+]
+
+[tool.poetry]
+# THIS IS THE FIX: Tells poetry this is a project, not a library
+package-mode = false
+
+[tool.poetry.dependencies]
+torch = { version = ">=2.10.0,<3.0.0", source = "pytorch-cpu" }
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
