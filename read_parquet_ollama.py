@@ -21,13 +21,13 @@ from sql_narrator_ollama import SQLNarrator, OllamaConfig, narrate_sql
 # ========================
 CONFIG = {
     # Ollama settings
-    "ollama_model": "qwen2.5:1.5b",  # Change based on your VRAM
-    "ollama_base_url": "http://localhost:11434",
+    "ollama_model": "llama3",  # Change based on your VRAM
+    "ollama_base_url": "http://192.168.1.76:8080",
     
     # Processing settings
-    "max_workers": 4,           # Concurrent requests to Ollama
+    "max_workers": 8,           # Concurrent requests to Ollama
     "batch_write_size":2,     # Flush to disk every N queries
-    "requests_per_second": 10,  # Rate limit (adjust based on your hardware)
+    "requests_per_second": 1,  # Rate limit (adjust based on your hardware)
     
     # Paths
     "parquet_path": "dataset/5839995-5849994.parquet",

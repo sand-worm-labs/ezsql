@@ -15,7 +15,8 @@ dependencies = [
     "transformers>=5.1.0,<6.0.0",
     "torch",
     "sentencepiece>=0.2.1",
-    "protobuf"
+    "protobuf",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
 
 [tool.poetry]

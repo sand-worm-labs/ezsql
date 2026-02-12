@@ -16,11 +16,11 @@ from sqlglot.errors import ErrorLevel
 # ========================
 # Configuration
 # ========================
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:1.5b"  # Small, fast, good at instruction following
+OLLAMA_BASE_URL = "http://192.168.1.76:8080"
+OLLAMA_MODEL = "llama3"  # Small, fast, good at instruction following
 # Alternatives: "phi3:mini", "llama3.2:1b", "gemma2:2b", "mistral:7b-instruct-q4_0"
 
-OLLAMA_TIMEOUT = 60.0  # seconds per request
+OLLAMA_TIMEOUT = 16000.0  # seconds per request
 MAX_SQL_LENGTH = 20000  # Truncate very long queries
 
 
@@ -60,8 +60,10 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.1,  # Low for deterministic output
-                "num_predict": 2056,  # Max tokens
+                 "num_ctx": 1024,      # smaller context window
+                 "num_predict": 100,
+                 "temperature": 0.1,  # Low for deterministic output
+                
             }
         }
         
@@ -116,10 +118,23 @@ def extract_sql_components(sql_query: str) -> list[tuple[str, str]]:
 # ========================
 SYSTEM_PROMPT = """You are a SQL explainer. Given a SQL query or fragment, identify the user's intent and explain it in plain English.
 - Be extremely concise (1-2 sentences max)
+You are a SQL explainer. For every SQL query:
+1. NEVER say "performs a database operation" or "filters by conditions"
+2. ALWAYS include actual table names, column names, and values
+3. If you see WHERE, state the exact condition (e.g., "where amount > 100")
+4. If you see JOIN, state the exact join condition
+5. Keep it to 1-2 sentences max.
+6. do you best to exaplin every query you come across
+
+Bad: "queries table, filters by conditions"
+Good: "selects user_id and amount from trades where block_timestamp > '2024-01-01' joined with pools on pool_id"
+
+Guidelines:
 - Focus on the business purpose, not SQL syntax
 - Use simple, clear words
 - Do not repeat the SQL back
 - Translate technical queries into human-understandable intent
+- This are dune queries , Queries from blockchain Activities
 - Think of it as creating a reusable template for the query’s goal
 - Capture what the query is trying to achieve, so future queries with a similar structure can be recognized"""
 
@@ -156,13 +171,9 @@ class SQLNarrator:
         
         for label, sql_fragment in components:
             if self._use_ollama:
-                try:
+              
                     explanation = self._narrate_with_ollama(sql_fragment)
-                except Exception as e:
-                    explanation = self._narrate_rule_based(sql_fragment)
-            else:
-                explanation = self._narrate_rule_based(sql_fragment)
-            
+                  
             narratives.append(f"{label}: {explanation}")
         
         return "\n".join(narratives)
@@ -186,54 +197,7 @@ class SQLNarrator:
         
         return response
     
-    def _narrate_rule_based(self, sql_fragment: str) -> str:
-        """Fallback rule-based narrator."""
-        try:
-            parsed = sqlglot.parse_one(sql_fragment, error_level=ErrorLevel.IGNORE)
-            parts = []
-            
-            if isinstance(parsed, exp.Select):
-                # Tables
-                tables = [t.name for t in parsed.find_all(exp.Table)]
-                if tables:
-                    parts.append(f"queries {', '.join(tables[:3])}")
-                
-                # Aggregations
-                aggs = []
-                if list(parsed.find_all(exp.Count)):
-                    aggs.append("counts")
-                if list(parsed.find_all(exp.Sum)):
-                    aggs.append("sums")
-                if list(parsed.find_all(exp.Avg)):
-                    aggs.append("averages")
-                if aggs:
-                    parts.append(f"calculates {', '.join(aggs)}")
-                
-                # Group by
-                if parsed.find(exp.Group):
-                    parts.append("groups results")
-                
-                # Filters
-                if parsed.find(exp.Where):
-                    parts.append("filters by conditions")
-                
-                # Joins
-                joins = list(parsed.find_all(exp.Join))
-                if joins:
-                    parts.append(f"joins {len(joins)} table(s)")
-                
-                # Order/Limit
-                if parsed.find(exp.Order):
-                    parts.append("sorts results")
-                if parsed.find(exp.Limit):
-                    parts.append("limits output")
-            
-            return ", ".join(parts) if parts else "performs a database operation"
-        
-        except Exception:
-            return "performs a database operation"
-
-
+   
 # ========================
 # Convenience function
 # ========================
