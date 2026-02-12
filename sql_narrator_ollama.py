@@ -60,8 +60,11 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False,
             "options": {
-                 "num_ctx": 1024,      # smaller context window
+                 "num_thread": 16,      # match your CPU cores
+                 "num_gpu": 99,
+                 "num_ctx": 5000,      # smaller context window
                  "num_predict": 100,
+                 "num_batch": 512,      # larger batch for faster generation
                  "temperature": 0.1,  # Low for deterministic output
                 
             }
