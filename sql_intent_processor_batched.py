@@ -21,13 +21,13 @@ from sql_narrator_ollama import SQLNarrator, OllamaConfig, SYSTEM_PROMPT
 # ========================
 CONFIG = {
     # Ollama settings
-    "ollama_model": "llama3",
+    "ollama_model": "llama3-gradient",
     "ollama_base_url": "http://192.168.1.76:8080",
     
     # Processing settings
     "queries_per_batch": 7,
-    "batch_write_size": 100,
-    "checkpoint_interval": 100,
+    "batch_write_size": 7,
+    "checkpoint_interval": 7,
     "max_sql_length": 80000,
     
     # Paths
@@ -41,25 +41,50 @@ CONFIG = {
 # Batch Prompt Template (uses imported SYSTEM_PROMPT)
 # ========================
 
-BATCH_USER_PROMPT =  """
-    Your goal: Help us create REUSABLE DESCRIPTIONS for Dune Analytics queries.  
-    We don't want to write a new explanation every time someone writes a slightly different query. 
-    Instead, describe the PATTERN so similar queries (different tokens, dates, chains) get the same template.  
-    For each query, identify: 
-        - The CORE INTENT (what analysis is being done) 
-        - The VARIABLE PARTS (tokens, addresses, dates, chains that could change)
-        - The FIXED PATTERN (the structure that stays the same)  
-    Write descriptions that would work for any variation of this query pattern. 
-    
-    {sql_list}  
-    Output format (one description per query, no preamble):
-    {output_format}
+BATCH_USER_PROMPT = """
+Convert SQL queries to pseudo-function pipelines.
 
-    Our ideah hear is that we belive that there are so may repetaion in the analisis that we can group queries into patterns and write one description per pattern.
-    For example, if we have 100 queries that all do "Top 10 token holders for a given token", we want to write one description that says "This query finds the top 10 holders for a specified token. The variable part is the token address, which can be changed to analyze different tokens." 
-    
- """ 
+CTE = function call, chain with →, use $var for parameters.
+Focus on INTENT, not literal translation. Create new functions if needed.
 
+Variables:
+$token_address      - ERC20 token contract
+$wallet_address     - user wallet
+$contract_address   - smart contract
+$collection_address - NFT collection
+$pool_address       - LP pool
+
+$chain              - blockchain (ethereum, polygon, arbitrum, optimism, base, bsc, all)
+$source_chain       - bridge origin
+$dest_chain         - bridge destination
+
+$from_date          - start date
+$to_date            - end date
+
+$dex_name           - DEX (uniswap, sushiswap, curve)
+$protocol_name      - protocol (aave, compound, lido)
+$bridge_name        - bridge (stargate, hop, across)
+$marketplace        - NFT market (opensea, blur)
+$stablecoin_symbol  - stablecoin (USDT, USDC, DAI)
+
+$limit              - result limit
+$min_balance        - minimum balance filter
+$threshold          - numeric threshold
+
+Format: ID|category|chain|function_pipeline|variables
+
+Examples:
+123|token|ethereum|raw_holders(token=$token_address) → rank(by=balance, limit=$limit) → leaderboard()|token_address,limit
+456|dex|arbitrum|raw_swaps(dex=uniswap, token=$token_address, from=$from_date, to=$to_date) → group_by(day) → aggregate(sum, volume) → timeseries()|token_address,from_date,to_date
+789|stablecoin|all|raw_stablecoin_flows(from=$from_date, to=$to_date) → group_by(symbol) → aggregate(sum, volume) → market_share()|from_date,to_date
+321|bridge|all|raw_bridge_transfers(bridge=$bridge_name, chain_from=$source_chain, chain_to=$dest_chain) → aggregate(sum, volume) → total()|bridge_name,source_chain,dest_chain
+555|lending|polygon|raw_borrows(protocol=aave, from=$from_date, to=$to_date) → group_by(token) → aggregate(sum, amount) → tvl()|from_date,to_date
+666|nft|ethereum|raw_nft_sales(collection=$collection_address, from=$from_date, to=$to_date) → group_by(day) → aggregate(sum, price_eth) → timeseries()|collection_address,from_date,to_date
+
+{sql_list}
+
+{output_format}
+"""
 
 # ========================
 # Checkpoint Management
@@ -123,7 +148,7 @@ def call_ollama_batch(
                     "stream": False,
                     "options": {
                         "num_predict": 80 * len(sqls),
-                        "num_ctx": 8000,
+                        "num_ctx": 10000,
                         "temperature": 0.1,
                         "num_thread": 16,
                         "num_gpu": 99,
@@ -132,6 +157,7 @@ def call_ollama_batch(
             )
             response.raise_for_status()
             text = response.json().get("response", "")
+            print(f"Ollama response:\n{text}")
     except Exception as e:
         return {qid: f"Error: {str(e)}" for qid in id_map.values()}
     

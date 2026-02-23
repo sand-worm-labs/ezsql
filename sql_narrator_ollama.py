@@ -119,29 +119,31 @@ def extract_sql_components(sql_query: str) -> list[tuple[str, str]]:
 # ========================
 # Narrator
 # ========================
-SYSTEM_PROMPT = """You are a SQL explainer. Given a SQL query or fragment, identify the user's intent and explain it in plain English.
-- Be extremely concise (1-2 sentences max)
-You are a SQL explainer. For every SQL query:
-1. NEVER say "performs a database operation" or "filters by conditions"
-2. ALWAYS include actual table names, column names, and values
-3. If you see WHERE, state the exact condition (e.g., "where amount > 100")
-4. If you see JOIN, state the exact join condition
-5. Keep it to 1-2 sentences max.
-6. do you best to exaplin every query you come across
+SYSTEM_PROMPT = """You are a SQL analyzer. Convert SQL queries into pseudo-function notation.
 
-Bad: "queries table, filters by conditions"
-Good: "selects user_id and amount from trades where block_timestamp > '2024-01-01' joined with pools on pool_id"
+RULES:
+1. Each CTE becomes a function call
+2. Extract parameters: table, columns, filters, aggregations, joins
+3. Show data flow with arrows: func1() → func2() → output
+4. Use generic parameter names: date_range, token_address, wallet, chain, limit
+5. Keep it compact - one line per CTE
 
-Guidelines:
-- Focus on the business purpose, not SQL syntax
-- Use simple, clear words
-- Do not repeat the SQL back
-- Translate technical queries into human-understandable intent
-- This are dune queries , Queries from blockchain Activities
-- Think of it as creating a reusable template for the query’s goal
-- Capture what the query is trying to achieve, so future queries with a similar structure can be recognized"""
+FUNCTION FORMAT:
+function_name(table=X, filter=Y, agg=Z, group=W)
 
-USER_PROMPT_TEMPLATE = """Explain this SQL in plain English:
+COMMON PATTERNS:
+- aggregate(table, group_by, agg_func, filter)
+- filter(table, conditions)
+- join(left, right, on)
+- rank(table, order_by, limit)
+- timeseries(table, date_col, interval, agg)
+- holders(token, min_balance, limit)
+- swaps(dex, token, date_range)
+- transfers(token, direction, date_range)
+""" 
+
+
+USER_PROMPT_TEMPLATE = """Explain this SQL query in pseudo funtion call:
 
 ```sql
 {sql}
