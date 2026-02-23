@@ -25,9 +25,9 @@ from tqdm import tqdm
 CONFIG = {
     "ollama_model": "llama3-gradient",
     "ollama_base_url": "http://192.168.1.76:8080",
-    "queries_per_batch": 10,
-    "batch_write_size": 10,
-    "checkpoint_interval": 10,
+    "queries_per_batch": 5,
+    "batch_write_size": 5,
+    "checkpoint_interval": 5,
     "max_sql_length": 8000,
     "parquet_path": "dataset/5839995-5849994.parquet",
     "output_file": "query_classifications.tsv",

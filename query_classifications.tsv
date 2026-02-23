@@ -1,11 +1,11 @@
 query_id	chains	label
-5839999	ethereum,arbitrum	bridge volume
-5840004	ethereum	unknown
-5839998	ethereum,polygon,optimism	bridge volume
-5839996	ethereum	unknown
-5840008	solana	token holder distribution
-5839995	unknown	unknown
-5840023	ethereum,optimism,polygon	unknown
-5840026	unknown	token price/market
-5840028	unknown	unknown
+5839999	ethereum,arbitrum,optimism	token price/market
+5840004	ethereum,polygon,optimism	token price/market
+5839998	parse error	parse error
+5839996	ethereum,arbitrum,optimism	token price/market
+5840008	solana	governance activity
+5839995	parse error	parse error
+5840023	polygon,optimism,bsc,ethereum	bridge volume
+5840026	bsc,ethereum	token price/market
+5840028	parse error	parse error
 5840039	ethereum	contract event parsing
