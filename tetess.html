@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Query Intent — Hierarchical Views</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#060a0f; font-family:'Courier New',monospace; color:#aabbcc; overflow:hidden; height:100vh; }
+
+#nav {
+  position:fixed; top:0; left:0; right:0; height:44px; background:#060a0f;
+  border-bottom:1px solid #0d1825; display:flex; align-items:center;
+  padding:0 16px; gap:0; z-index:100;
+}
+.nav-btn {
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  padding:6px 14px; border:1px solid transparent; background:transparent;
+  color:#2a3f55; cursor:pointer; font-family:'Courier New',monospace; transition:all 0.15s;
+}
+.nav-btn:hover { color:#4a6070; border-color:#0d1825; }
+.nav-btn.active { color:#aabbcc; border-color:#1e3040; background:#0d1420; }
+#nav-title { font-size:9px; color:#1a2d3d; letter-spacing:3px; margin-right:16px; flex-shrink:0; }
+
+#canvas { position:fixed; top:44px; left:0; right:0; bottom:0; overflow:hidden; }
+.viz { position:absolute; top:0; left:0; width:100%; height:100%; display:none; overflow:hidden; }
+.viz.active { display:block; }
+
+#tooltip {
+  position:fixed; pointer-events:none; z-index:200;
+  background:#0a0f16; border:1px solid #1a2530;
+  padding:10px 14px; font-size:9px; color:#8899aa;
+  display:none; max-width:280px; line-height:1.8;
+}
+.tt-title { font-size:10px; color:#aabbcc; font-weight:700; margin-bottom:5px; letter-spacing:1px; }
+
+#hint {
+  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  font-size:8px; color:#1a2d3d; letter-spacing:2px; pointer-events:none; z-index:50;
+}
+</style>
+</head>
+<body>
+
+<div id="nav">
+  <span id="nav-title">INTENT · HIERARCHY</span>
+  <button class="nav-btn active" data-viz="sunburst">Sunburst</button>
+  <button class="nav-btn" data-viz="radialtree">Radial Tree</button>
+  <button class="nav-btn" data-viz="circlepack">Circle Pack</button>
+  <button class="nav-btn" data-viz="icicle">Icicle</button>
+  <button class="nav-btn" data-viz="forcetree">Force Tree</button>
+  <button class="nav-btn" data-viz="voronoi">Voronoi</button>
+  <button class="nav-btn" data-viz="network">Network</button>
+</div>
+
+<div id="canvas">
+  <div class="viz active" id="viz-sunburst"></div>
+  <div class="viz" id="viz-radialtree"></div>
+  <div class="viz" id="viz-circlepack"></div>
+  <div class="viz" id="viz-icicle"></div>
+  <div class="viz" id="viz-forcetree"></div>
+  <div class="viz" id="viz-voronoi"></div>
+  <div class="viz" id="viz-network"></div>
+</div>
+
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
+<div id="hint">click to zoom · click center/root to zoom out</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const Q = [
+  {id:"q44",  label:"fffiiinnneee",   g1:"DeFi",            g2:"On-chain Activity",      g3:"DEX Trading",            g4:"PnL Tracking",         g5:"Single-wallet DEX trade history · estimated profit vs cost basis"},
+  {id:"q49",  label:"test query",     g1:"Protocol Ops",    g2:"Cost Accounting",        g3:"Multi-env Comparison",   g4:"Gas vs Earnings",      g5:"Polygon bot daily net profit · prod/devstage/devdev envs"},
+  {id:"q55",  label:"2690055",        g1:"Token Economics", g2:"Supply Tracking",        g3:"ERC-20 Token",           g4:"Circulating Supply",   g5:"Balancer BPT circ supply · mint/burn · gap-filled calendar"},
+  {id:"q43",  label:"LZ 900K",        g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"LayerZero per-wallet rank · 35 criteria · leaderboard"},
+  {id:"q60",  label:"insh",           g1:"DeFi",            g2:"Wallet Surveillance",    g3:"DEX Flow Analysis",      g4:"Bot Detection",        g5:"ETH DEX activity · trace-level to-address filter · 10d"},
+  {id:"q63",  label:"Exchange Flows", g1:"Market Structure",g2:"CEX Monitoring",         g3:"Token Deposit/Withdraw", g4:"Net Flow by Exchange", g5:"PENDLE CEX flows · ERC-20 vs CEX labels · exchange+user+day"},
+  {id:"q70",  label:"nihonden",       g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"LayerZero leaderboard fork · identical logic · diff owner"},
+  {id:"q76",  label:"2690076",        g1:"Token Economics", g2:"Supply Tracking",        g3:"Governance Token",       g4:"Total Supply",         g5:"BAL total supply · GovernanceToken mint/burn · gap-fill"},
+  {id:"q81",  label:"Univ3 LPs",      g1:"DeFi",            g2:"AMM / Liquidity",        g3:"Uniswap V3 Pool",        g4:"Price + TVL",          g5:"Polygon V3 pool price · LAG delta · TVL wired incomplete"},
+  {id:"q82",  label:"Notional Liq",   g1:"DeFi",            g2:"Lending / Credit",       g3:"Risk Monitoring",        g4:"Liquidation Events",   g5:"Arbitrum Notional v3 liquidations · collateral+local types"},
+  {id:"q85",  label:"DAU/PAU",        g1:"Network Metrics", g2:"User Activity",          g3:"Ethereum Mainnet",       g4:"Active Addresses",     g5:"Daily distinct senders + receivers · ETH txns · 2023+"},
+  {id:"q84",  label:"2690084",        g1:"DeFi",            g2:"Governance",             g3:"Vote-Escrowed Token",    g4:"veBAL Decay Model",    g5:"Per-address lockedBPT + veBAL · linear decay · aggregated"},
+  {id:"q88",  label:"CAI Benchmark",  g1:"Token Economics", g2:"Price Benchmarking",     g3:"Multi-token Comparison", g4:"Rolling Returns",      g5:"CAI vs AVAX · Trader Joe sync pricing · 1d/7d/30d/1y/YTD"},
+  {id:"q90",  label:"LZ Stats",       g1:"Cross-chain",     g2:"Single Wallet Lookup",   g3:"LayerZero Protocol",     g4:"Activity Scoring",     g5:"Single-address LZ summary · tx/chain/contract · parameterized"},
+  {id:"q93",  label:"LZ Forks x3",   g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"3 identical LZ leaderboard forks · diff owners · personal rank"},
+  {id:"q96",  label:"Lido Runway",    g1:"DAO Finance",     g2:"Operational Risk",       g3:"Treasury Management",    g4:"Runway Calculation",   g5:"Lido stablecoin expenses vs balance · GAAP txn · 3m rolling"},
+  {id:"q119", label:"2690119",        g1:"DAO Finance",     g2:"Portfolio Tracking",     g3:"Treasury Wallets",       g4:"Balance + USD Value",  g5:"Two ETH addr ERC-20 balances · BPT/aBAL/sBAL · price+category"},
+];
+
+const PAL = {
+  "DeFi":            "#00ff88",
+  "Cross-chain":     "#ff6b35",
+  "Token Economics": "#a78bfa",
+  "DAO Finance":     "#38bdf8",
+  "Protocol Ops":    "#fbbf24",
+  "Network Metrics": "#fb7185",
+  "Market Structure":"#34d399",
+};
+const col = d => PAL[d] || "#445566";
+
+// ── TREE BUILDER ──────────────────────────────────────────────────────────────
+function buildTree() {
+  const root = { name:"root", children:[] };
+  Q.forEach(q => {
+    const layers = [q.g1, q.g2, q.g3, q.g4, q.g5];
+    let cur = root.children;
+    layers.forEach((l, i) => {
+      let node = cur.find(n => n.name === l);
+      if (!node) {
+        node = { name:l, domain:q.g1, level:i+1, children:[] };
+        cur.push(node);
+      }
+      if (i === 4) { node.value = 1; node.queryId = q.id; node.queryLabel = q.label; delete node.children; }
+      cur = node.children || [];
+    });
+  });
+  return root;
+}
+
+function domainOf(d) {
+  let n = d; while (n.depth > 1) n = n.parent;
+  return n.depth === 0 ? null : n.data.name;
+}
+function nodeCol(d, alpha) {
+  const dom = domainOf(d);
+  return (col(dom||"") + (alpha||""));
+}
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────────────
+const TT  = document.getElementById("tooltip");
+const TTT = document.getElementById("tt-title");
+const TTB = document.getElementById("tt-body");
+function showTT(e, title, body) { TT.style.display="block"; TTT.textContent=title; TTB.innerHTML=body; moveTT(e); }
+function moveTT(e) { TT.style.left=(e.clientX+14)+"px"; TT.style.top=(e.clientY-10)+"px"; }
+function hideTT() { TT.style.display="none"; }
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+const rendered = {};
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".viz").forEach(v => v.classList.remove("active"));
+    this.classList.add("active");
+    const id = this.dataset.viz;
+    document.getElementById("viz-"+id).classList.add("active");
+    if (!rendered[id]) { rendered[id] = true; drawMap[id](); }
+  });
+});
+
+// ── GLOW DEFS ─────────────────────────────────────────────────────────────────
+function addGlow(svg, id) {
+  const defs = svg.append("defs");
+  const f = defs.append("filter").attr("id", id);
+  f.append("feGaussianBlur").attr("stdDeviation","2.5").attr("result","b");
+  const m = f.append("feMerge");
+  m.append("feMergeNode").attr("in","b");
+  m.append("feMergeNode").attr("in","SourceGraphic");
+  return defs;
+}
+
+// ── 1. SUNBURST ───────────────────────────────────────────────────────────────
+function drawSunburst() {
+  const el = document.getElementById("viz-sunburst");
+  const W = el.clientWidth, H = el.clientHeight;
+  const R = Math.min(W, H) * 0.46;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H);
+  addGlow(svg, "glow-sb");
+  const g = svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const hier = d3.hierarchy(buildTree()).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+  d3.partition().size([2*Math.PI, R])(hier);
+
+  const maxD=5, ir=R*0.18, rw=(R-ir)/maxD;
+  const ri = d => d.depth===0 ? 0 : ir+(d.depth-1)*rw;
+  const ro = d => d.depth===0 ? ir : ir+d.depth*rw-2;
+
+  let cur = hier;
+
+  function update(root) {
+    cur = root;
+    g.selectAll("path.sp,text.sp").remove();
+    const as = d => Math.max(0,Math.min(1,(d.x0-root.x0)/(root.x1-root.x0)))*2*Math.PI;
+    const ae = d => Math.max(0,Math.min(1,(d.x1-root.x0)/(root.x1-root.x0)))*2*Math.PI;
+    const dd = d => d.depth - root.depth;
+    const arcZ = d3.arc()
+      .startAngle(d=>as(d)).endAngle(d=>ae(d))
+      .innerRadius(d=>dd(d)<=0?0:ir+(dd(d)-1)*rw)
+      .outerRadius(d=>dd(d)<=0?ir:ir+dd(d)*rw-2).padAngle(0.012);
+
+    const desc = hier.descendants().filter(d => dd(d)>=0 && dd(d)<=maxD && (d.x1-d.x0)>0.002);
+    const t = g.transition().duration(500).ease(d3.easeCubicInOut);
+
+    g.selectAll("path.sp").data(desc, d=>d.data.name+d.depth).join(
+      enter => enter.append("path").attr("class","sp").attr("d",arcZ).attr("opacity",0)
+        .call(e=>e.transition(t).attr("opacity",d=>dd(d)===0?0:1)),
+      upd => upd.call(u=>u.transition(t).attr("d",arcZ).attr("opacity",d=>dd(d)===0?0:1)),
+      exit => exit.call(x=>x.transition(t).attr("opacity",0).remove())
+    )
+    .attr("fill", d=>{
+      if(dd(d)===0) return "#060a0f";
+      let n=d; while(n.depth>1) n=n.parent;
+      const base = col(n.depth===0?"":n.data.name);
+      return base+(["","44","33","22","18","12"][dd(d)]||"12");
+    })
+    .attr("stroke", d=>{ let n=d;while(n.depth>1)n=n.parent;return col(n.depth===0?"":n.data.name)+"28";})
+    .attr("stroke-width",0.5)
+    .attr("cursor",d=>d.children?"pointer":"default")
+    .style("filter",d=>dd(d)===1?"url(#glow-sb)":"none")
+    .on("click",(e,d)=>{ if(!d.children)return; update(d===cur?(d.parent||hier):d); })
+    .on("mouseover",(e,d)=>{
+      if(dd(d)===0) return;
+      let n=d;while(n.depth>1)n=n.parent;
+      showTT(e, d.data.name, `<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">Layer ${dd(d)} · ${d.value} quer${d.value===1?"y":"ies"}</div>`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+    // Labels
+    desc.filter(d=>dd(d)>0&&dd(d)<5&&(d.x1-d.x0)>0.15).forEach(d=>{
+      const angle=(as(d)+ae(d))/2;
+      const r=ir+(dd(d)-0.5)*rw;
+      const rot=angle*180/Math.PI-90;
+      const flip=rot>90&&rot<270;
+      g.append("text").attr("class","sp")
+        .attr("transform",`translate(${Math.sin(angle)*r},${-Math.cos(angle)*r}) rotate(${flip?rot+180:rot})`)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",Math.max(7,10-dd(d)*1.2)+"px").attr("font-family","monospace")
+        .attr("fill","#4a6070").attr("pointer-events","none")
+        .text(d.data.name.length>14?d.data.name.slice(0,13)+"…":d.data.name);
+    });
+
+    // Center
+    g.selectAll(".ctr").remove();
+    g.append("circle").attr("class","ctr").attr("r",ir-4).attr("fill","#060a0f").attr("stroke","#0d1520").attr("stroke-width",1).style("pointer-events","none");
+    g.append("text").attr("class","ctr").attr("text-anchor","middle").attr("dy","0.35em")
+      .attr("font-size","8px").attr("fill","#1e3040").attr("font-family","monospace").style("pointer-events","none")
+      .text(root===hier?"click to zoom":root.data.name.slice(0,12));
+  }
+  svg.on("click",()=>{ update(cur.parent||hier); });
+  update(hier);
+}
+
+// ── 2. RADIAL TREE ────────────────────────────────────────────────────────────
+function drawRadialTree() {
+  const el = document.getElementById("viz-radialtree");
+  const W = el.clientWidth, H = el.clientHeight;
+  const R = Math.min(W,H)*0.44;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H)
+    .call(d3.zoom().scaleExtent([0.3,3]).on("zoom",e=>gMain.attr("transform",e.transform)));
+  addGlow(svg,"glow-rt");
+  const gMain = svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const hier = d3.hierarchy(buildTree()).sort((a,b)=>b.height-a.height||a.data.name.localeCompare(b.data.name));
+  d3.tree().size([2*Math.PI, R])(hier);
+
+  const radialLink = d3.linkRadial().angle(d=>d.x).radius(d=>d.y);
+
+  gMain.selectAll("path.rl").data(hier.links()).join("path").attr("class","rl")
+    .attr("d", radialLink)
+    .attr("fill","none")
+    .attr("stroke", d => { let n=d.target; while(n.depth>1)n=n.parent; return col(n.data.name)+"33"; })
+    .attr("stroke-width", d => Math.max(0.5, 3-d.target.depth*0.5));
+
+  const node = gMain.selectAll("g.rn").data(hier.descendants()).join("g").attr("class","rn")
+    .attr("transform", d=>`rotate(${d.x*180/Math.PI-90}) translate(${d.y},0)`);
+
+  node.append("circle")
+    .attr("r", d => d.depth===0?8:Math.max(2,6-d.depth))
+    .attr("fill", d => { let n=d; while(n.depth>1)n=n.parent; return d.depth===0?"#060a0f":col(n.data.name)+(d.children?"44":"66"); })
+    .attr("stroke", d => { let n=d; while(n.depth>1)n=n.parent; return d.depth===0?"#1e3040":col(n.data.name)+"99"; })
+    .attr("stroke-width",1)
+    .style("filter", d => d.depth===1?"url(#glow-rt)":"none")
+    .on("mouseover",(e,d)=>{
+      if(d.depth===0)return;
+      let n=d;while(n.depth>1)n=n.parent;
+      showTT(e,d.data.name,`<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">Depth ${d.depth} · ${d.value||1} quer${(d.value||1)===1?"y":"ies"}</div>`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  node.filter(d=>d.depth>0).append("text")
+    .attr("transform", d => { const rot=d.x*180/Math.PI-90; return `rotate(${(rot>90&&rot<270)?180:0})`; })
+    .attr("x", d => { const rot=d.x*180/Math.PI-90; return (rot>90&&rot<270)?-(d.depth<5?8:6):(d.depth<5?8:6); })
+    .attr("text-anchor", d => { const rot=d.x*180/Math.PI-90; return (rot>90&&rot<270)?"end":"start"; })
+    .attr("dominant-baseline","middle")
+    .attr("font-size", d => Math.max(7,10-d.depth*1.2)+"px")
+    .attr("font-family","monospace")
+    .attr("fill", d => { let n=d; while(n.depth>1)n=n.parent; return col(n.data.name)+(d.depth<3?"cc":"66"); })
+    .text(d => d.data.name.length>16?d.data.name.slice(0,15)+"…":d.data.name);
+}
+
+// ── 3. CIRCLE PACKING ─────────────────────────────────────────────────────────
+function drawCirclePack() {
+  const el = document.getElementById("viz-circlepack");
+  const W = el.clientWidth, H = el.clientHeight;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H);
+  addGlow(svg,"glow-cp");
+  const g = svg.append("g");
+
+  const hier = d3.hierarchy(buildTree()).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+  d3.pack().size([W-4, H-4]).padding(d=>d.depth===0?20:d.depth===1?10:4)(hier);
+
+  let focus = hier;
+  const view = [W/2, H/2, hier.r*2+20];
+
+  function zoomTo(v) {
+    const k = Math.min(W,H)/v[2];
+    g.selectAll("circle.cp").attr("transform", d => `translate(${(d.x-v[0])*k+W/2},${(d.y-v[1])*k+H/2})`).attr("r",d=>d.r*k);
+    g.selectAll("text.cp").attr("transform", d => `translate(${(d.x-v[0])*k+W/2},${(d.y-v[1])*k+H/2})`);
+    g.selectAll("text.cp").attr("display", d => d.r*k>14?"":"none").attr("font-size",d=>Math.max(7,d.r*k*0.25)+"px");
+  }
+
+  g.selectAll("circle.cp").data(hier.descendants()).join("circle").attr("class","cp")
+    .attr("fill", d => {
+      let n=d; while(n.depth>1)n=n.parent;
+      const base=col(n.depth===0?"":n.data.name);
+      if(d.depth===0) return "#060a0f";
+      return base+(["","22","33","44","55","66"][d.depth]||"22");
+    })
+    .attr("stroke", d => { let n=d;while(n.depth>1)n=n.parent; return col(n.depth===0?"":n.data.name)+(d.children?"44":"66"); })
+    .attr("stroke-width", d => d.children?1:1.5)
+    .style("filter", d => d.depth===1?"url(#glow-cp)":"none")
+    .attr("cursor", d => d.children?"pointer":"default")
+    .on("click",(e,d)=>{
+      e.stopPropagation();
+      focus = d===focus?(d.parent||hier):d;
+      svg.transition().duration(600).ease(d3.easeCubicInOut)
+        .tween("zoom",()=>{ const i=d3.interpolateZoom(view,[focus.x,focus.y,focus.r*2+20]); return t=>zoomTo(i(t)); });
+    })
+    .on("mouseover",(e,d)=>{
+      if(d.depth===0)return;
+      let n=d;while(n.depth>1)n=n.parent;
+      showTT(e,d.data.name,`<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">Depth ${d.depth} · ${d.value} quer${d.value===1?"y":"ies"}</div>`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  svg.on("click",()=>{ focus=hier; svg.transition().duration(600).ease(d3.easeCubicInOut).tween("zoom",()=>{ const i=d3.interpolateZoom(view,[hier.x,hier.y,hier.r*2+20]); return t=>zoomTo(i(t)); }); });
+
+  g.selectAll("text.cp").data(hier.descendants().filter(d=>d.depth>0&&d.depth<5)).join("text").attr("class","cp")
+    .attr("text-anchor","middle").attr("dominant-baseline","middle")
+    .attr("font-family","monospace").attr("pointer-events","none")
+    .attr("fill", d => { let n=d;while(n.depth>1)n=n.parent; return col(n.data.name)+"cc"; })
+    .text(d=>d.data.name.length>14?d.data.name.slice(0,13)+"…":d.data.name);
+
+  zoomTo(view);
+}
+
+// ── 4. ICICLE ─────────────────────────────────────────────────────────────────
+function drawIcicle() {
+  const el = document.getElementById("viz-icicle");
+  const W = el.clientWidth, H = el.clientHeight;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H);
+  addGlow(svg,"glow-ic");
+  const g = svg.append("g");
+
+  const hier = d3.hierarchy(buildTree()).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+  d3.partition().size([W, H])(hier);
+
+  let focus = hier;
+
+  function update(root) {
+    focus = root;
+    const t = g.transition().duration(500).ease(d3.easeCubicInOut);
+    const kx = W/(root.x1-root.x0);
+    const ky = H/5;
+    const xOff = root.x0;
+    const yOff = root.y0;
+
+    g.selectAll("g.ic").data(hier.descendants(), d=>d.data.name+d.depth)
+      .join(
+        enter => {
+          const eg = enter.append("g").attr("class","ic").attr("opacity",0);
+          eg.append("rect");
+          eg.append("text");
+          return eg.call(e=>e.transition(t).attr("opacity",1));
+        },
+        upd => upd,
+        exit => exit.call(x=>x.transition(t).attr("opacity",0).remove())
+      )
+      .call(sel=>{
+        sel.select("rect")
+          .attr("cursor","pointer")
+          .call(r=>r.transition(t)
+            .attr("x",d=>(d.x0-xOff)*kx).attr("y",d=>(d.y0-yOff)*ky)
+            .attr("width",d=>Math.max(0,(d.x1-d.x0)*kx-2))
+            .attr("height",d=>Math.max(0,(d.y1-d.y0)*ky-2)))
+          .attr("fill",d=>{
+            if(d.depth===0)return"#060a0f";
+            let n=d;while(n.depth>1)n=n.parent;
+            return col(n.data.name)+(["","33","28","22","18","14"][d.depth]||"14");
+          })
+          .attr("stroke",d=>{let n=d;while(n.depth>1)n=n.parent;return col(n.data.name)+"44";})
+          .attr("stroke-width",1)
+          .attr("rx",2)
+          .on("click",(e,d)=>{ e.stopPropagation(); update(d===focus?(focus.parent||hier):d); })
+          .on("mouseover",(e,d)=>{
+            if(d.depth===0)return;
+            let n=d;while(n.depth>1)n=n.parent;
+            showTT(e,d.data.name,`<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">${d.value} quer${d.value===1?"y":"ies"}</div>`);
+          })
+          .on("mousemove",moveTT).on("mouseout",hideTT);
+
+        sel.select("text")
+          .attr("pointer-events","none")
+          .call(t2=>t2.transition(t)
+            .attr("x",d=>(d.x0-xOff)*kx+6)
+            .attr("y",d=>(d.y0-yOff)*ky + (d.y1-d.y0)*ky/2))
+          .attr("dominant-baseline","middle")
+          .attr("font-size","9px").attr("font-family","monospace")
+          .attr("fill",d=>{let n=d;while(n.depth>1)n=n.parent;return col(n.data.name)+"cc";})
+          .text(d=>{
+            const w=(d.x1-d.x0)*kx;
+            if(w<30)return"";
+            const s=d.data.name;
+            const maxC=Math.floor(w/6);
+            return s.length>maxC?s.slice(0,maxC-1)+"…":s;
+          });
+      });
+  }
+
+  svg.on("click",()=>update(focus.parent||hier));
+  update(hier);
+}
+
+// ── 5. FORCE TREE ─────────────────────────────────────────────────────────────
+function drawForceTree() {
+  const el = document.getElementById("viz-forcetree");
+  const W = el.clientWidth, H = el.clientHeight;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H)
+    .call(d3.zoom().scaleExtent([0.2,4]).on("zoom",e=>gMain.attr("transform",e.transform)));
+  addGlow(svg,"glow-ft");
+  const gMain = svg.append("g");
+  const linkG = gMain.append("g");
+  const nodeG = gMain.append("g");
+
+  const hier = d3.hierarchy(buildTree());
+  const nodes = hier.descendants();
+  const links = hier.links();
+
+  nodes.forEach(d=>{ d.x=W/2+(Math.random()-0.5)*200; d.y=d.depth*120+60; });
+
+  const sim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d=>d.id||d.data.name+d.depth).distance(d=>60+d.target.depth*20).strength(0.8))
+    .force("charge", d3.forceManyBody().strength(d=>d.children?-200:-80))
+    .force("y", d3.forceY(d=>d.depth*110+60).strength(0.5))
+    .force("x", d3.forceX(W/2).strength(0.05))
+    .force("collision", d3.forceCollide(d=>d.children?20:14));
+
+  const linkEl = linkG.selectAll("line").data(links).join("line")
+    .attr("stroke",d=>{ let n=d.target;while(n.depth>1)n=n.parent; return col(n.data.name)+"44"; })
+    .attr("stroke-width",d=>Math.max(0.5,3-d.target.depth*0.6));
+
+  const nodeEl = nodeG.selectAll("g.fn").data(nodes).join("g").attr("class","fn")
+    .attr("cursor","pointer")
+    .call(d3.drag()
+      .on("start",(e,d)=>{ if(!e.active)sim.alphaTarget(0.3).restart(); d.fx=d.x;d.fy=d.y; })
+      .on("drag",(e,d)=>{ d.fx=e.x;d.fy=e.y; })
+      .on("end",(e,d)=>{ if(!e.active)sim.alphaTarget(0); d.fx=null;d.fy=null; }))
+    .on("mouseover",(e,d)=>{
+      if(d.depth===0)return;
+      let n=d;while(n.depth>1)n=n.parent;
+      showTT(e,d.data.name,`<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">Depth ${d.depth}</div>`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  nodeEl.append("circle")
+    .attr("r",d=>d.depth===0?12:Math.max(4,10-d.depth*1.8))
+    .attr("fill",d=>{ let n=d;while(n.depth>1)n=n.parent; return d.depth===0?"#060a0f":col(n.data.name)+(d.children?"33":"55"); })
+    .attr("stroke",d=>{ let n=d;while(n.depth>1)n=n.parent; return d.depth===0?"#1e3040":col(n.data.name)+"88"; })
+    .attr("stroke-width",1)
+    .style("filter",d=>d.depth===1?"url(#glow-ft)":"none");
+
+  nodeEl.filter(d=>d.depth>0&&d.depth<5).append("text")
+    .attr("x",d=>d.depth<4?10:8).attr("dominant-baseline","middle")
+    .attr("font-size",d=>Math.max(7,10-d.depth*1.2)+"px").attr("font-family","monospace")
+    .attr("fill",d=>{ let n=d;while(n.depth>1)n=n.parent; return col(n.data.name)+(d.depth<3?"cc":"66"); })
+    .attr("pointer-events","none")
+    .text(d=>d.data.name.length>18?d.data.name.slice(0,17)+"…":d.data.name);
+
+  sim.on("tick",()=>{
+    linkEl.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+    nodeEl.attr("transform",d=>`translate(${d.x},${d.y})`);
+  });
+}
+
+// ── 6. VORONOI TREEMAP ────────────────────────────────────────────────────────
+function drawVoronoi() {
+  const el = document.getElementById("viz-voronoi");
+  const W = el.clientWidth, H = el.clientHeight;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H);
+  addGlow(svg,"glow-vo");
+  const g = svg.append("g");
+
+  // Manual domain positioning for Voronoi-like effect
+  const domains = [...new Set(Q.map(q=>q.g1))];
+  const domQueries = d => Q.filter(q=>q.g1===d);
+
+  // Use D3 treemap per domain cell
+  const hier = d3.hierarchy({name:"root", children:
+    domains.map(d=>({
+      name:d,
+      children: Object.values(Q.filter(q=>q.g1===d).reduce((acc,q)=>{
+        if(!acc[q.g2]) acc[q.g2]={name:q.g2,domain:d,children:[]};
+        acc[q.g2].children.push({name:q.label,domain:d,value:1});
+        return acc;
+      },{}))
+    }))
+  }).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+
+  d3.treemap().size([W,H]).padding(6).paddingTop(24).paddingInner(3).round(true)(hier);
+
+  // Draw domain groups
+  hier.children.forEach(dom=>{
+    const domCol = col(dom.data.name);
+    g.append("rect")
+      .attr("x",dom.x0).attr("y",dom.y0)
+      .attr("width",dom.x1-dom.x0).attr("height",dom.y1-dom.y0)
+      .attr("fill",domCol+"0a").attr("stroke",domCol+"55").attr("stroke-width",1.5).attr("rx",4);
+    g.append("text")
+      .attr("x",dom.x0+8).attr("y",dom.y0+16)
+      .attr("font-size","10px").attr("font-family","monospace").attr("font-weight","700")
+      .attr("fill",domCol+"dd").text(dom.data.name);
+  });
+
+  // Draw sub-genre groups
+  hier.descendants().filter(d=>d.depth===2).forEach(sub=>{
+    const domCol = col(sub.data.domain||sub.parent?.data.name);
+    g.append("rect")
+      .attr("x",sub.x0).attr("y",sub.y0)
+      .attr("width",Math.max(0,sub.x1-sub.x0))
+      .attr("height",Math.max(0,sub.y1-sub.y0))
+      .attr("fill",domCol+"18").attr("stroke",domCol+"33").attr("stroke-width",1).attr("rx",3);
+    if(sub.x1-sub.x0>50){
+      g.append("text").attr("x",sub.x0+5).attr("y",sub.y0+12)
+        .attr("font-size","8px").attr("font-family","monospace")
+        .attr("fill",domCol+"88").text(sub.data.name.length>14?sub.data.name.slice(0,13)+"…":sub.data.name);
+    }
+  });
+
+  // Draw leaves
+  hier.leaves().forEach(leaf=>{
+    const domCol = col(leaf.data.domain||leaf.ancestors().find(a=>a.depth===1)?.data.name);
+    const bw = Math.max(0,leaf.x1-leaf.x0-2);
+    const bh = Math.max(0,leaf.y1-leaf.y0-2);
+    if(bw<4||bh<4)return;
+    const rect = g.append("rect")
+      .attr("x",leaf.x0+1).attr("y",leaf.y0+1)
+      .attr("width",bw).attr("height",bh)
+      .attr("fill",domCol+"33").attr("stroke",domCol+"77").attr("stroke-width",1).attr("rx",2)
+      .attr("cursor","pointer")
+      .on("mouseover",e=>{
+        const q=Q.find(x=>x.label===leaf.data.name||x.id===leaf.data.queryId);
+        showTT(e,leaf.data.name,`<div style="color:${domCol}">${leaf.parent?.parent?.data.name||""}</div><div style="color:#2a3f55">${q?.g2||""} › ${q?.g3||""}</div>`);
+      })
+      .on("mousemove",moveTT).on("mouseout",hideTT);
+    if(bw>30&&bh>14){
+      g.append("text").attr("x",leaf.x0+5).attr("y",leaf.y0+bh/2+1)
+        .attr("dominant-baseline","middle").attr("font-size","7.5px").attr("font-family","monospace")
+        .attr("fill",domCol+"cc").attr("pointer-events","none")
+        .text(leaf.data.name.length>Math.floor(bw/6)?leaf.data.name.slice(0,Math.floor(bw/6)-1)+"…":leaf.data.name);
+    }
+  });
+}
+
+// ── 7. ZOOMABLE NETWORK ───────────────────────────────────────────────────────
+function drawNetwork() {
+  const el = document.getElementById("viz-network");
+  const W = el.clientWidth, H = el.clientHeight;
+  const svg = d3.select(el).append("svg").attr("width",W).attr("height",H)
+    .call(d3.zoom().scaleExtent([0.1,6]).on("zoom",e=>gMain.attr("transform",e.transform)));
+  addGlow(svg,"glow-nw");
+  const gMain = svg.append("g");
+  const linkG = gMain.append("g");
+  const nodeG = gMain.append("g");
+
+  // Build nodes + links with genre layers as nodes
+  const nodeMap = {};
+  const nodes = [];
+  const links = [];
+
+  function mkNode(name, depth, domain) {
+    const key = `${depth}::${name}`;
+    if (!nodeMap[key]) {
+      nodeMap[key] = { id:key, name, depth, domain, key };
+      nodes.push(nodeMap[key]);
+    }
+    return key;
+  }
+
+  Q.forEach(q=>{
+    const layers=[q.g1,q.g2,q.g3,q.g4,q.label];
+    layers.forEach((l,i)=>{
+      mkNode(l, i+1, q.g1);
+      if(i>0){
+        const s=nodeMap[`${i}::${layers[i-1]}`];
+        const t=nodeMap[`${i+1}::${l}`];
+        if(s&&t){
+          const ex=links.find(lk=>lk.source===s.id&&lk.target===t.id);
+          if(!ex) links.push({source:s.id,target:t.id,domain:q.g1});
+        }
+      }
+    });
+  });
+
+  // Size nodes by connection count
+  const connCount={};
+  links.forEach(l=>{ connCount[l.source]=(connCount[l.source]||0)+1; connCount[l.target]=(connCount[l.target]||0)+1; });
+
+  const linkEl = linkG.selectAll("line").data(links).join("line")
+    .attr("stroke",d=>col(d.domain)+"33").attr("stroke-width",1);
+
+  const nodeEl = nodeG.selectAll("g.nw").data(nodes).join("g").attr("class","nw")
+    .attr("cursor","pointer")
+    .call(d3.drag()
+      .on("start",(e,d)=>{ if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y; })
+      .on("drag",(e,d)=>{ d.fx=e.x;d.fy=e.y; })
+      .on("end",(e,d)=>{ if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null; }))
+    .on("mouseover",(e,d)=>{
+      linkEl.attr("stroke",l=>(l.source.id||l.source)===d.id||(l.target.id||l.target)===d.id?col(d.domain)+"cc":col(d.domain)+"11");
+      showTT(e,d.name,`<div style="color:${col(d.domain)}">${d.domain}</div><div style="color:#2a3f55">Layer ${d.depth} · ${connCount[d.id]||0} connections</div>`);
+    })
+    .on("mousemove",moveTT)
+    .on("mouseout",()=>{ linkEl.attr("stroke",d=>col(d.domain)+"33"); hideTT(); });
+
+  const rScale = d3.scaleSqrt().domain([0, d3.max(Object.values(connCount))]).range([4,22]);
+
+  nodeEl.append("circle")
+    .attr("r",d=>rScale(connCount[d.id]||1))
+    .attr("fill",d=>col(d.domain)+(d.depth===5?"55":"22"))
+    .attr("stroke",d=>col(d.domain)+(d.depth===1?"cc":"66"))
+    .attr("stroke-width",d=>d.depth===1?1.5:0.8)
+    .style("filter",d=>d.depth===1?"url(#glow-nw)":"none");
+
+  nodeEl.filter(d=>d.depth<4||(connCount[d.id]||0)>2).append("text")
+    .attr("x",d=>rScale(connCount[d.id]||1)+4).attr("dominant-baseline","middle")
+    .attr("font-size",d=>Math.max(7,10-d.depth)+"px").attr("font-family","monospace")
+    .attr("fill",d=>col(d.domain)+(d.depth<3?"cc":"66")).attr("pointer-events","none")
+    .text(d=>d.name.length>16?d.name.slice(0,15)+"…":d.name);
+
+  const sim = d3.forceSimulation(nodes)
+    .force("link",d3.forceLink(links).id(d=>d.id).distance(80).strength(0.5))
+    .force("charge",d3.forceManyBody().strength(-120))
+    .force("center",d3.forceCenter(W/2,H/2))
+    .force("y",d3.forceY(d=>(d.depth/5)*H).strength(0.3))
+    .force("collision",d3.forceCollide(d=>rScale(connCount[d.id]||1)+6));
+
+  sim.on("tick",()=>{
+    linkEl.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+    nodeEl.attr("transform",d=>`translate(${d.x},${d.y})`);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+const drawMap = { sunburst:drawSunburst, radialtree:drawRadialTree, circlepack:drawCirclePack, icicle:drawIcicle, forcetree:drawForceTree, voronoi:drawVoronoi, network:drawNetwork };
+rendered["sunburst"] = true;
+drawSunburst();
+</script>
+</body>
+</html>

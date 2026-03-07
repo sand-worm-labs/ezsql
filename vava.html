@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Icicle — Query Intent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#f0f2f5; font-family:'Courier New',monospace; overflow:hidden; height:100vh; }
+
+#header {
+  position:fixed; top:0; left:0; right:0; height:48px; background:#fff;
+  border-bottom:2px solid #e0e4ec; display:flex; align-items:center;
+  padding:0 20px; gap:12px; z-index:100; box-shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+#header h1 { font-size:11px; font-weight:900; letter-spacing:4px; color:#1a2030; }
+#breadcrumb { display:flex; align-items:center; gap:0; margin-left:8px; }
+.bc { font-size:9px; font-weight:800; letter-spacing:1px; padding:4px 10px;
+  border:1px solid #e0e4ec; color:#8899aa; cursor:pointer; background:#f8f9fc; }
+.bc:hover { color:#1a2030; }
+.bc.active { color:#fff; background:#1a2030; border-color:#1a2030; }
+.bc-sep { font-size:11px; color:#c0c8d8; padding:0 2px; }
+
+#hint { position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:#aabbcc; letter-spacing:2px; font-weight:700; pointer-events:none; }
+
+#tooltip {
+  position:fixed; pointer-events:none; z-index:200;
+  background:#fff; border:2px solid #e0e4ec; border-radius:6px;
+  padding:12px 16px; font-size:10px; color:#334466;
+  display:none; max-width:300px; line-height:1.9;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+}
+.tt-title { font-size:12px; color:#1a2030; font-weight:900; margin-bottom:6px; }
+
+#canvas { position:fixed; top:48px; left:0; right:0; bottom:0; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>ICICLE · QUERY INTENT</h1>
+  <div id="breadcrumb"></div>
+</div>
+<div id="canvas"></div>
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
+<div id="hint">click any segment to zoom in · click root to zoom out</div>
+
+<script>
+const Q = [
+  {id:"q44",  label:"fffiiinnneee",   g1:"DeFi",            g2:"On-chain Activity",      g3:"DEX Trading",            g4:"PnL Tracking",         g5:"Single-wallet DEX trade history"},
+  {id:"q49",  label:"test query",     g1:"Protocol Ops",    g2:"Cost Accounting",        g3:"Multi-env Comparison",   g4:"Gas vs Earnings",      g5:"Polygon bot daily net profit"},
+  {id:"q55",  label:"2690055",        g1:"Token Economics", g2:"Supply Tracking",        g3:"ERC-20 Token",           g4:"Circulating Supply",   g5:"Balancer BPT circ supply"},
+  {id:"q43",  label:"LZ 900K",        g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"LayerZero per-wallet rank"},
+  {id:"q60",  label:"insh",           g1:"DeFi",            g2:"Wallet Surveillance",    g3:"DEX Flow Analysis",      g4:"Bot Detection",        g5:"ETH DEX bot detection"},
+  {id:"q63",  label:"Exchange Flows", g1:"Market Structure",g2:"CEX Monitoring",         g3:"Token Deposit/Withdraw", g4:"Net Flow by Exchange", g5:"PENDLE CEX flows"},
+  {id:"q70",  label:"nihonden",       g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"LZ leaderboard fork"},
+  {id:"q76",  label:"2690076",        g1:"Token Economics", g2:"Supply Tracking",        g3:"Governance Token",       g4:"Total Supply",         g5:"BAL total supply"},
+  {id:"q81",  label:"Univ3 LPs",      g1:"DeFi",            g2:"AMM / Liquidity",        g3:"Uniswap V3 Pool",        g4:"Price + TVL",          g5:"Polygon V3 pool price WIP"},
+  {id:"q82",  label:"Notional Liq",   g1:"DeFi",            g2:"Lending / Credit",       g3:"Risk Monitoring",        g4:"Liquidation Events",   g5:"Notional v3 liquidations"},
+  {id:"q85",  label:"DAU/PAU",        g1:"Network Metrics", g2:"User Activity",          g3:"Ethereum Mainnet",       g4:"Active Addresses",     g5:"Daily ETH senders + receivers"},
+  {id:"q84",  label:"2690084",        g1:"DeFi",            g2:"Governance",             g3:"Vote-Escrowed Token",    g4:"veBAL Decay Model",    g5:"veBAL power timeseries"},
+  {id:"q88",  label:"CAI Benchmark",  g1:"Token Economics", g2:"Price Benchmarking",     g3:"Multi-token Comparison", g4:"Rolling Returns",      g5:"CAI vs AVAX returns"},
+  {id:"q90",  label:"LZ Stats",       g1:"Cross-chain",     g2:"Single Wallet Lookup",   g3:"LayerZero Protocol",     g4:"Activity Scoring",     g5:"Single-address LZ summary"},
+  {id:"q93",  label:"LZ Forks x3",   g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",        g4:"Activity Scoring",     g5:"3x LZ leaderboard forks"},
+  {id:"q96",  label:"Lido Runway",    g1:"DAO Finance",     g2:"Operational Risk",       g3:"Treasury Management",   g4:"Runway Calculation",   g5:"Lido stablecoin runway"},
+  {id:"q119", label:"2690119",        g1:"DAO Finance",     g2:"Portfolio Tracking",     g3:"Treasury Wallets",       g4:"Balance + USD Value",  g5:"Balancer treasury balances"},
+];
+
+const PAL = {
+  "DeFi":            "#00b85c",
+  "Cross-chain":     "#e8500a",
+  "Token Economics": "#7c3aed",
+  "DAO Finance":     "#0284c7",
+  "Protocol Ops":    "#d97706",
+  "Network Metrics": "#e11d48",
+  "Market Structure":"#059669",
+};
+const col = d => PAL[d] || "#334466";
+
+const TT=document.getElementById("tooltip"),TTT=document.getElementById("tt-title"),TTB=document.getElementById("tt-body");
+function showTT(e,t,b){TT.style.display="block";TTT.textContent=t;TTB.innerHTML=b;moveTT(e);}
+function moveTT(e){TT.style.left=(e.clientX+16)+"px";TT.style.top=(e.clientY-10)+"px";}
+function hideTT(){TT.style.display="none";}
+
+function buildTree(){
+  const root={name:"All Queries",children:[]};
+  Q.forEach(q=>{
+    const layers=[q.g1,q.g2,q.g3,q.g4,q.g5];
+    let cur=root.children;
+    layers.forEach((l,i)=>{
+      let node=cur.find(n=>n.name===l);
+      if(!node){node={name:l,domain:q.g1,children:[]};cur.push(node);}
+      if(i===4){node.value=1;node.queryId=q.id;node.queryLabel=q.label;delete node.children;}
+      cur=node.children||[];
+    });
+  });
+  return root;
+}
+
+// ── LAYOUT ───────────────────────────────────────────────────────────────────
+const canvasEl = document.getElementById("canvas");
+const W = canvasEl.clientWidth;
+const H = canvasEl.clientHeight;
+const LAYERS = 6; // root + 5 genre layers
+const ROW_H = H / LAYERS;
+
+const svg = d3.select("#canvas").append("svg")
+  .attr("width", W).attr("height", H);
+
+// drop shadow filter
+const defs = svg.append("defs");
+const f = defs.append("filter").attr("id","sh");
+f.append("feDropShadow").attr("dx",0).attr("dy",1).attr("stdDeviation",2).attr("flood-color","rgba(0,0,0,0.10)");
+
+const g = svg.append("g");
+
+const root = d3.hierarchy(buildTree())
+  .sum(d => d.value || 0)
+  .sort((a, b) => b.value - a.value);
+
+// Use treemap-style partition but horizontal (x = breadth, y = depth)
+d3.partition().size([W, H])(root);
+
+// Override y coords to be equal-height rows based on depth
+root.each(d => {
+  d.y0 = d.depth * ROW_H;
+  d.y1 = d.y0 + ROW_H;
+});
+
+let focusNode = root;
+let animating = false;
+
+function domainOf(d){
+  let n=d; while(n.depth>1)n=n.parent;
+  return n.depth===0?null:n.data.name;
+}
+
+function getColor(d, opacity){
+  const dom = domainOf(d);
+  const base = col(dom||"");
+  if(!dom) return "#f0f2f5";
+  // Convert hex to rgba
+  const r=parseInt(base.slice(1,3),16),g2=parseInt(base.slice(3,5),16),b=parseInt(base.slice(5,7),16);
+  return `rgba(${r},${g2},${b},${opacity})`;
+}
+
+function draw(focus){
+  focusNode = focus;
+  animating = true;
+
+  // Compute x scale: map focus.x0..focus.x1 → 0..W
+  const xScale = d3.scaleLinear()
+    .domain([focus.x0, focus.x1])
+    .range([0, W]);
+
+  // Compute y offset: focus row becomes row 0
+  const yOffset = focus.depth * ROW_H;
+
+  // Which nodes to show: descendants of focus that fit in view
+  const visible = root.descendants().filter(d => {
+    // must overlap with focus's x range
+    return d.x1 > focus.x0 && d.x0 < focus.x1 &&
+           d.depth >= focus.depth &&
+           d.depth <= focus.depth + LAYERS - 1;
+  });
+
+  const t = g.transition().duration(480).ease(d3.easeCubicInOut);
+
+  // ── RECTS ──
+  const rects = g.selectAll("g.cell")
+    .data(visible, d => d.data.name + "_" + d.depth);
+
+  const enter = rects.enter().append("g").attr("class","cell")
+    .attr("opacity", 0)
+    .attr("cursor", d => d.children ? "pointer" : "default");
+
+  enter.append("rect");
+  enter.append("text");
+
+  const all = enter.merge(rects);
+
+  // transition opacity in
+  all.transition(t).attr("opacity", 1);
+
+  // exit
+  rects.exit().transition(t).attr("opacity", 0).remove();
+
+  // update rects
+  all.select("rect")
+    .on("click", (e, d) => {
+      e.stopPropagation();
+      if(animating) return;
+      if(!d.children) return;
+      if(d === focusNode){
+        draw(focusNode.parent || root);
+      } else {
+        draw(d);
+      }
+    })
+    .on("mouseover", (e, d) => {
+      d3.select(e.target).attr("opacity", 0.75);
+      const dom = domainOf(d);
+      const q = Q.find(x => x.id === d.data.queryId);
+      showTT(e, d.data.name,
+        `<div style="color:${col(dom||"")};font-weight:800">${dom||"Root"}</div>` +
+        `<div style="color:#667788">Layer ${d.depth - focus.depth} · ${d.value} quer${d.value===1?"y":"ies"}</div>` +
+        (q ? `<div style="color:#99aabb;margin-top:4px">${q.g2} › ${q.g3}</div>` : "")
+      );
+    })
+    .on("mousemove", moveTT)
+    .on("mouseout", (e) => { d3.select(e.target).attr("opacity", 1); hideTT(); })
+    .transition(t)
+    .attr("x", d => xScale(d.x0) + 1)
+    .attr("y", d => d.depth * ROW_H - yOffset + 1)
+    .attr("width", d => Math.max(0, xScale(d.x1) - xScale(d.x0) - 2))
+    .attr("height", ROW_H - 2)
+    .attr("rx", 4)
+    .attr("fill", d => {
+      const dom = domainOf(d);
+      if(!dom) return "#e8edf5";
+      const depth_rel = d.depth - focus.depth;
+      const opacities = [1, 0.85, 0.65, 0.45, 0.3];
+      return getColor(d, opacities[depth_rel] || 0.2);
+    })
+    .attr("stroke", "#ffffff")
+    .attr("stroke-width", 2)
+    .attr("filter", d => d.depth - focus.depth < 2 ? "url(#sh)" : "none");
+
+  // update labels
+  all.select("text")
+    .attr("pointer-events", "none")
+    .transition(t)
+    .attr("x", d => xScale(d.x0) + 8)
+    .attr("y", d => d.depth * ROW_H - yOffset + ROW_H / 2)
+    .attr("dominant-baseline", "middle")
+    .attr("font-size", d => {
+      const w = xScale(d.x1) - xScale(d.x0);
+      return Math.min(13, Math.max(8, w / 12)) + "px";
+    })
+    .attr("font-family", "monospace")
+    .attr("font-weight", "900")
+    .attr("fill", d => {
+      const depth_rel = d.depth - focus.depth;
+      return depth_rel < 3 ? "#ffffff" : "#ffffff";
+    })
+    .text(d => {
+      const w = xScale(d.x1) - xScale(d.x0);
+      if(w < 24) return "";
+      const maxC = Math.floor(w / 8);
+      const s = d.data.name;
+      return s.length > maxC ? s.slice(0, maxC - 1) + "…" : s;
+    });
+
+  t.on("end", () => { animating = false; });
+
+  // breadcrumb
+  updateBC(focus);
+}
+
+// click svg bg to zoom out
+svg.on("click", () => {
+  if(animating) return;
+  if(focusNode !== root) draw(focusNode.parent || root);
+});
+
+// ── BREADCRUMB ───────────────────────────────────────────────────────────────
+function updateBC(node){
+  const crumbs = [];
+  let cur = node;
+  while(cur){ crumbs.unshift(cur); cur = cur.parent; }
+
+  const bc = document.getElementById("breadcrumb");
+  bc.innerHTML = "";
+
+  crumbs.forEach((c, i) => {
+    if(i > 0){
+      const sep = document.createElement("span");
+      sep.className = "bc-sep"; sep.textContent = "›";
+      bc.appendChild(sep);
+    }
+    const btn = document.createElement("div");
+    btn.className = "bc" + (i === crumbs.length - 1 ? " active" : "");
+    btn.textContent = c.data.name.length > 16 ? c.data.name.slice(0,15)+"…" : c.data.name;
+    if(c.depth > 0){
+      const dom = domainOf(c);
+      if(dom && i === crumbs.length - 1){
+        btn.style.background = col(dom);
+        btn.style.borderColor = col(dom);
+        btn.style.color = "#ffffff";
+      }
+    }
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(!animating) draw(c);
+    });
+    bc.appendChild(btn);
+  });
+}
+
+// ── ROW LABELS (right side) ───────────────────────────────────────────────────
+const layerNames = ["Domain","Category","Focus","Method","Query","—"];
+const labelG = svg.append("g").attr("pointer-events","none");
+
+function drawRowLabels(focus){
+  labelG.selectAll("*").remove();
+  for(let i = 0; i < LAYERS; i++){
+    const y = i * ROW_H;
+    const lname = layerNames[i] || "";
+    // subtle row stripe
+    labelG.append("rect")
+      .attr("x", W - 80).attr("y", y + 1)
+      .attr("width", 79).attr("height", ROW_H - 2)
+      .attr("fill", i % 2 === 0 ? "rgba(0,0,0,0.02)" : "rgba(0,0,0,0.04)")
+      .attr("rx", 4);
+    labelG.append("text")
+      .attr("x", W - 8).attr("y", y + ROW_H / 2)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-size","8px").attr("font-family","monospace").attr("font-weight","800")
+      .attr("letter-spacing","2").attr("fill","#c0c8d8")
+      .text(lname.toUpperCase());
+  }
+}
+
+drawRowLabels(root);
+draw(root);
+
+window.addEventListener("resize", () => location.reload());
+</script>
+</body>
+</html>
