@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Query Intent Sunburst</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060a0f; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+
+  #container { position: relative; }
+
+  #breadcrumb {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0; z-index: 10;
+    font-size: 10px; letter-spacing: 1px;
+  }
+  .bc-item { color: #2a3f55; padding: 4px 10px; border: 1px solid #0d1825; position: relative; }
+  .bc-item.active { color: #aabbcc; border-color: #1e3040; }
+  .bc-sep { color: #1a2d3d; font-size: 12px; padding: 0 2px; }
+
+  #center-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none; width: 130px;
+  }
+  #center-name { font-size: 11px; color: #aabbcc; line-height: 1.5; font-weight: 700; }
+  #center-sub  { font-size: 9px; color: #3d5570; margin-top: 6px; line-height: 1.6; }
+  #center-ring { font-size: 8px; color: #1e3040; margin-top: 4px; letter-spacing: 2px; text-transform: uppercase; }
+
+  #legend {
+    position: fixed; top: 24px; right: 24px; display: flex; flex-direction: column; gap: 7px; z-index: 10;
+  }
+  .leg { display: flex; align-items: center; gap: 8px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .leg-text { font-size: 9px; color: #3d5570; }
+
+  #ring-labels {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 0; z-index: 10;
+  }
+  .rl { font-size: 8px; color: #1e2d3d; padding: 4px 12px; border: 1px solid #0d1825; letter-spacing: 2px; text-transform: uppercase; }
+  .rl span { display: block; font-size: 7px; color: #131f2a; margin-top: 2px; text-align: center; }
+
+  #hint { position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #1a2d3d; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div id="breadcrumb"></div>
+<div id="container">
+  <div id="center-label">
+    <div id="center-name">Query<br>Intent Map</div>
+    <div id="center-sub">17 queries<br>5 genre layers</div>
+    <div id="center-ring">hover to explore</div>
+  </div>
+</div>
+<div id="legend"></div>
+<div id="ring-labels">
+  <div class="rl">Ring 1<span>Domain</span></div>
+  <div class="rl">Ring 2<span>Category</span></div>
+  <div class="rl">Ring 3<span>Focus</span></div>
+  <div class="rl">Ring 4<span>Method</span></div>
+  <div class="rl">Ring 5<span>Query</span></div>
+</div>
+<div id="hint">click to zoom &nbsp;·&nbsp; click center to zoom out</div>
+
+<script>
+const queries = [
+  {
+    id:"q44", label:"fffiiinnneee", short:"DEX PnL",
+    g1:"DeFi", g2:"On-chain Activity", g3:"DEX Trading", g4:"PnL Tracking",
+    g5:"Single-wallet trade history\nestimated profit vs cost basis\nparameterized chain/day/address"
+  },
+  {
+    id:"q49", label:"test query", short:"Bot Profit",
+    g1:"Protocol Ops", g2:"Cost Accounting", g3:"Multi-env Comparison", g4:"Gas vs Earnings",
+    g5:"Polygon bot daily net profit\nprod/devstage/devdev envs\ntraces + transactions"
+  },
+  {
+    id:"q55", label:"2690055", short:"BPT Supply",
+    g1:"Token Economics", g2:"Supply Tracking", g3:"ERC-20 Token", g4:"Circulating Supply",
+    g5:"Balancer BPT circ supply\nmint/burn events\ngap-filled calendar"
+  },
+  {
+    id:"q43", label:"LZ 900K", short:"LZ Leaderboard",
+    g1:"Cross-chain", g2:"User Profiling", g3:"Airdrop Farming", g4:"Activity Scoring",
+    g5:"LayerZero per-wallet rank\n35 scoring criteria\nchains/weeks/volume leaderboard"
+  },
+  {
+    id:"q60", label:"insh", short:"Bot Detection",
+    g1:"DeFi", g2:"Wallet Surveillance", g3:"DEX Flow Analysis", g4:"Bot Detection",
+    g5:"ETH DEX activity\ntrace-level to-address filter\nknown sender set last 10d"
+  },
+  {
+    id:"q63", label:"Exchange Flows", short:"CEX Flows",
+    g1:"Market Structure", g2:"CEX Monitoring", g3:"Token Deposit/Withdrawal", g4:"Net Flow by Exchange",
+    g5:"PENDLE CEX flows\nERC-20 transfer vs CEX labels\naggregated by exchange+user+day"
+  },
+  {
+    id:"q70", label:"nihonden", short:"LZ Clone",
+    g1:"Cross-chain", g2:"User Profiling", g3:"Airdrop Farming", g4:"Activity Scoring",
+    g5:"LayerZero leaderboard fork\nidentical scoring logic\ndifferent owner"
+  },
+  {
+    id:"q76", label:"2690076", short:"BAL Supply",
+    g1:"Token Economics", g2:"Supply Tracking", g3:"Governance Token", g4:"Total Supply",
+    g5:"BAL total supply\nGovernanceToken mint/burn\ncalendar gap-filling"
+  },
+  {
+    id:"q81", label:"Univ3 LPs", short:"V3 Pool WIP",
+    g1:"DeFi", g2:"AMM / Liquidity", g3:"Uniswap V3 Pool", g4:"Price + TVL",
+    g5:"Polygon V3 pool price tracking\nLAG-based delta\nTVL wired but incomplete"
+  },
+  {
+    id:"q82", label:"Notional Liq", short:"Liquidations",
+    g1:"DeFi", g2:"Lending / Credit", g3:"Risk Monitoring", g4:"Liquidation Events",
+    g5:"Arbitrum Notional v3 liq events\ncollateral + local currency types\ndaily ETH price join"
+  },
+  {
+    id:"q85", label:"DAU/PAU", short:"Network DAU",
+    g1:"Network Metrics", g2:"User Activity", g3:"Ethereum Mainnet", g4:"Active Addresses",
+    g5:"Daily distinct senders + receivers\nETH transactions\nsince 2023-01-01"
+  },
+  {
+    id:"q84", label:"2690084", short:"veBAL Power",
+    g1:"DeFi", g2:"Governance", g3:"Vote-Escrowed Token", g4:"veBAL Decay Model",
+    g5:"Per-address lockedBPT + veBAL\nlinear decay calculation\naggregated protocol totals"
+  },
+  {
+    id:"q88", label:"CAI Benchmark", short:"Price Perf",
+    g1:"Token Economics", g2:"Price Benchmarking", g3:"Multi-token Comparison", g4:"Rolling Returns",
+    g5:"CAI vs AVAX on Avalanche\nTrader Joe sync pricing\n1d/7d/30d/3m/1y/YTD returns"
+  },
+  {
+    id:"q90", label:"LZ Stats", short:"LZ Wallet",
+    g1:"Cross-chain", g2:"Single Wallet Lookup", g3:"LayerZero Protocol", g4:"Activity Scoring",
+    g5:"Single-address LZ summary\ntx/chain/contract counts\nparameterized by wallet"
+  },
+  {
+    id:"q93", label:"LZ Forks ×3", short:"LZ Forks",
+    g1:"Cross-chain", g2:"User Profiling", g3:"Airdrop Farming", g4:"Activity Scoring",
+    g5:"3 identical LZ leaderboard forks\ndifferent owners\npersonal rank lookup"
+  },
+  {
+    id:"q96", label:"Lido Runway", short:"DAO Runway",
+    g1:"DAO Finance", g2:"Operational Risk", g3:"Treasury Management", g4:"Runway Calculation",
+    g5:"Lido stablecoin expenses vs balance\nGAAP-tagged txn data\n3m rolling opex + runway months"
+  },
+  {
+    id:"q119", label:"2690119", short:"Treasury Bal",
+    g1:"DAO Finance", g2:"Portfolio Tracking", g3:"Treasury Wallets", g4:"Balance + USD Value",
+    g5:"Two ETH addresses ERC-20 balances\ncustom symbols BPT/aBAL/sBAL\nclosing price + category tags"
+  },
+];
+
+const palette = {
+  "DeFi":           "#00ff88",
+  "Cross-chain":    "#ff6b35",
+  "Token Economics":"#a78bfa",
+  "DAO Finance":    "#38bdf8",
+  "Protocol Ops":   "#fbbf24",
+  "Network Metrics":"#fb7185",
+  "Market Structure":"#34d399",
+};
+
+// Legend
+const legendEl = document.getElementById("legend");
+Object.entries(palette).forEach(([k,v]) => {
+  legendEl.innerHTML += `<div class="leg"><div class="leg-dot" style="background:${v};box-shadow:0 0 5px ${v}88"></div><span class="leg-text">${k}</span></div>`;
+});
+
+// Build hierarchy
+function buildTree() {
+  const root = { name: "root", children: [] };
+  const find = (arr, name) => arr.find(d => d.name === name);
+
+  queries.forEach(q => {
+    const layers = [q.g1, q.g2, q.g3, q.g4, q.g5];
+    let cur = root.children;
+    layers.forEach((layer, i) => {
+      let node = find(cur, layer);
+      if (!node) {
+        node = { name: layer, level: i + 1, topDomain: q.g1, children: [] };
+        cur.push(node);
+      }
+      if (i === 4) {
+        // leaf — attach query info
+        node.queryId = q.id;
+        node.queryLabel = q.label;
+        node.value = 1;
+        delete node.children;
+      }
+      cur = node.children || [];
+    });
+  });
+  return root;
+}
+
+const treeData = buildTree();
+
+const W = Math.min(window.innerWidth, window.innerHeight) * 0.88;
+const R = W / 2;
+
+const svg = d3.select("#container").append("svg")
+  .attr("width", W).attr("height", W)
+  .style("display","block");
+
+const g = svg.append("g").attr("transform", `translate(${R},${R})`);
+
+// Defs
+const defs = svg.append("defs");
+const glowFilter = defs.append("filter").attr("id","glow").attr("x","-50%").attr("y","-50%").attr("width","200%").attr("height","200%");
+glowFilter.append("feGaussianBlur").attr("stdDeviation","2.5").attr("result","blur");
+const feMerge = glowFilter.append("feMerge");
+feMerge.append("feMergeNode").attr("in","blur");
+feMerge.append("feMergeNode").attr("in","SourceGraphic");
+
+const hierarchy = d3.hierarchy(treeData)
+  .sum(d => d.value || 0)
+  .sort((a,b) => b.value - a.value);
+
+const partition = d3.partition().size([2 * Math.PI, R - 20]);
+partition(hierarchy);
+
+// Ring radii override — equal width rings
+const maxDepth = 5;
+const innerR = R * 0.18;
+const ringW = (R - innerR - 20) / maxDepth;
+
+function rInner(d) { return d.depth === 0 ? 0 : innerR + (d.depth - 1) * ringW; }
+function rOuter(d) { return d.depth === 0 ? innerR : innerR + d.depth * ringW; }
+
+const arc = d3.arc()
+  .startAngle(d => d.x0)
+  .endAngle(d => d.x1)
+  .innerRadius(d => rInner(d))
+  .outerRadius(d => rOuter(d) - 1.5)
+  .padAngle(0.012)
+  .padRadius(R / 2);
+
+// Color
+function getColor(d) {
+  let node = d;
+  while (node.depth > 1) node = node.parent;
+  if (node.depth === 0) return "#0d1825";
+  const topName = node.data.name;
+  const base = palette[topName] || "#334455";
+  const t = (d.depth - 1) / maxDepth;
+  return d3.interpolate(base, base + "22")(t * 0.7);
+}
+
+function getStroke(d) {
+  let node = d;
+  while (node.depth > 1) node = node.parent;
+  if (node.depth === 0) return "#0d1825";
+  return (palette[node.data.name] || "#334") + "30";
+}
+
+// State
+let currentRoot = hierarchy;
+
+function update(root) {
+  currentRoot = root;
+
+  const t = d3.transition().duration(600).ease(d3.easeCubicInOut);
+
+  const total = root === hierarchy ? hierarchy.value : root.value;
+  const angleScale = d => {
+    const x0 = Math.max(0, Math.min(1, (d.x0 - root.x0) / (root.x1 - root.x0))) * 2 * Math.PI;
+    const x1 = Math.max(0, Math.min(1, (d.x1 - root.x0) / (root.x1 - root.x0))) * 2 * Math.PI;
+    return { x0, x1 };
+  };
+  const depthScale = d => d.depth - root.depth;
+
+  const arcZoomed = d3.arc()
+    .startAngle(d => angleScale(d).x0)
+    .endAngle(d => angleScale(d).x1)
+    .innerRadius(d => {
+      const dep = depthScale(d);
+      return dep <= 0 ? 0 : innerR + (dep - 1) * ringW;
+    })
+    .outerRadius(d => {
+      const dep = depthScale(d);
+      return dep <= 0 ? innerR : innerR + dep * ringW - 1.5;
+    })
+    .padAngle(0.012)
+    .padRadius(R / 2);
+
+  const descendants = root.descendants().filter(d => {
+    const dep = depthScale(d);
+    return dep >= 0 && dep <= maxDepth && (d.x1 - d.x0) > 0.001;
+  });
+
+  const paths = g.selectAll("path.arc-path")
+    .data(descendants, d => d.data.name + d.depth);
+
+  paths.join(
+    enter => enter.append("path")
+      .attr("class","arc-path")
+      .attr("cursor", d => d.children ? "pointer" : "default")
+      .attr("fill", d => depthScale(d) === 0 ? "#0d1825" : getColor(d))
+      .attr("stroke", getStroke)
+      .attr("stroke-width", 0.5)
+      .attr("opacity", 0)
+      .style("filter", d => d.depth === 1 ? "url(#glow)" : "none")
+      .attr("d", arcZoomed)
+      .on("click", clicked)
+      .on("mouseover", hovered)
+      .on("mouseout", unhovered)
+      .call(e => e.transition(t).attr("opacity", d => depthScale(d) === 0 ? 0 : 1)),
+    update => update
+      .attr("cursor", d => d.children ? "pointer" : "default")
+      .call(u => u.transition(t)
+        .attr("opacity", d => depthScale(d) === 0 ? 0 : 1)
+        .attr("d", arcZoomed)),
+    exit => exit.call(e => e.transition(t).attr("opacity",0).remove())
+  );
+
+  // Labels
+  const labels = g.selectAll("text.arc-label")
+    .data(descendants.filter(d => {
+      const dep = depthScale(d);
+      return dep > 0 && dep < 5 && (d.x1 - d.x0) > 0.18;
+    }), d => d.data.name + d.depth);
+
+  labels.join(
+    enter => enter.append("text")
+      .attr("class","arc-label")
+      .attr("pointer-events","none")
+      .attr("text-anchor","middle")
+      .attr("dominant-baseline","middle")
+      .attr("opacity",0)
+      .attr("transform", d => labelTransform(d, arcZoomed))
+      .attr("font-size", d => Math.max(7, 11 - depthScale(d) * 1.5) + "px")
+      .attr("font-family","monospace")
+      .attr("fill", d => depthScale(d) === 1 ? "#aabbcc" : "#6a8aa0")
+      .attr("font-weight", d => depthScale(d) === 1 ? "700" : "400")
+      .text(d => truncate(d.data.name, depthScale(d)))
+      .call(e => e.transition(t).attr("opacity",1)),
+    update => update
+      .call(u => u.transition(t)
+        .attr("opacity",1)
+        .attr("transform", d => labelTransform(d, arcZoomed))
+        .text(d => truncate(d.data.name, depthScale(d)))),
+    exit => exit.call(e => e.transition(t).attr("opacity",0).remove())
+  );
+}
+
+function labelTransform(d, arcFn) {
+  const angle = (d.x0 + d.x1) / 2;
+  const dep = currentRoot ? d.depth - currentRoot.depth : d.depth;
+  const r = dep <= 0 ? 0 : innerR + (dep - 0.5) * ringW;
+  const x = Math.sin(angle) * r;
+  const y = -Math.cos(angle) * r;
+  const rot = (angle * 180 / Math.PI - 90);
+  const flip = rot > 90 && rot < 270;
+  return `translate(${x},${y}) rotate(${flip ? rot + 180 : rot})`;
+}
+
+function truncate(str, depth) {
+  const maxLen = depth === 1 ? 14 : depth === 2 ? 12 : 10;
+  return str.length > maxLen ? str.slice(0, maxLen - 1) + "…" : str;
+}
+
+function clicked(event, d) {
+  event.stopPropagation();
+  if (!d.children) return;
+  if (d === currentRoot) {
+    update(d.parent || hierarchy);
+    updateBreadcrumb(d.parent || hierarchy);
+  } else {
+    update(d);
+    updateBreadcrumb(d);
+  }
+}
+
+function hovered(event, d) {
+  // Center label
+  const name = d.data.name;
+  const lines = name.split("\n");
+  document.getElementById("center-name").innerHTML = lines.map((l,i) => i===0 ? `<b>${l}</b>` : `<span style="font-weight:400;font-size:9px;color:#4a6070">${l}</span>`).join("<br>");
+
+  const dep = currentRoot ? d.depth - currentRoot.depth : d.depth;
+  const ringNames = ["Domain","Category","Focus","Method","Query"];
+  document.getElementById("center-ring").textContent = ringNames[dep-1] || "";
+
+  let node = d;
+  while(node.depth > 1) node = node.parent;
+  const topName = node.depth === 0 ? "" : node.data.name;
+  document.getElementById("center-sub").textContent = topName;
+
+  // Dim others
+  g.selectAll("path.arc-path").attr("opacity", p => {
+    return p === d || isAncestor(d, p) || isAncestor(p, d) ? 1 : 0.25;
+  });
+}
+
+function unhovered() {
+  document.getElementById("center-name").innerHTML = currentRoot === hierarchy ? "Query<br>Intent Map" : currentRoot.data.name;
+  document.getElementById("center-sub").textContent = currentRoot === hierarchy ? "17 queries · 5 layers" : "";
+  document.getElementById("center-ring").textContent = currentRoot === hierarchy ? "hover to explore" : "click center to zoom out";
+  g.selectAll("path.arc-path").attr("opacity", 1);
+}
+
+function isAncestor(node, potential) {
+  let cur = potential;
+  while (cur) { if (cur === node) return true; cur = cur.parent; }
+  return false;
+}
+
+// Breadcrumb
+function updateBreadcrumb(node) {
+  const crumbs = [];
+  let cur = node;
+  while (cur && cur.data.name !== "root") { crumbs.unshift(cur); cur = cur.parent; }
+  const bc = document.getElementById("breadcrumb");
+  bc.innerHTML = `<div class="bc-item">root</div>` +
+    crumbs.map(c => `<span class="bc-sep">›</span><div class="bc-item active">${truncate(c.data.name, 1)}</div>`).join("");
+}
+
+// Click center = zoom out
+svg.on("click", () => {
+  update(currentRoot.parent || hierarchy);
+  updateBreadcrumb(currentRoot.parent || hierarchy);
+});
+
+update(hierarchy);
+updateBreadcrumb(hierarchy);
+</script>
+</body>
+</html>

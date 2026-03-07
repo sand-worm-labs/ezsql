@@ -9,3 +9,38 @@ query_id	chains	label
 5840026	bsc,ethereum	token price/market
 5840028	parse error	parse error
 5840039	ethereum	contract event parsing
+5840050	ethereum,arbitrum,polygon,optimism	protocol revenue
+5840047	solana	nft sales
+5840046	solana	token price/market
+5840036	solana	token price/market
+5840053	solana	token price/market
+5840057	ethereum	contract event parsing
+5840062	ethereum	protocol revenue
+5840069	polygon,ethereum,optimism	liquidity pool snapshot
+5840067	parse error	parse error
+5840078	arbitrum,polygon,ethereum,base	fund flow tracing
+5840075	ethereum,base	token price/market
+5840086	ethereum,polygon,optimism	bridge volume
+5840091	solana	protocol revenue
+5840098	ethereum	token price/market
+5840111	ethereum	fund flow tracing
+5840112	ethereum	token price/market
+5840113	solana	fund flow tracing
+5840115	polygon,optimism	protocol revenue
+5840114	ethereum	bridge volume
+5840116	ethereum	contract event parsing
+5840120	ethereum	fund flow tracing
+5840119	ethereum,polygon,optimism	bridge volume
+5840121	bsc,solana	token holder distribution
+5840118	bsc,solana	token price/market
+5840124	none	protocol revenue
+5840117	ethereum,optimism,polygon	protocol revenue
+5840125	starknet	contract event parsing
+5840126	starknet	governance activity
+5840122	ethereum	fund flow tracing
+5840129	ethereum,optimism,polygon	token price/market
+5840130	ethereum,polygon,optimism	protocol revenue
+5840131	solana	token price/market
+5840132	parse error	parse error
+5840146	ethereum	contract event parsing
+5840150	ethereum	token holder distribution

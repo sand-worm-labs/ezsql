@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Query Intent Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#060a0f; font-family:'Courier New',monospace; color:#aabbcc; overflow:hidden; height:100vh; }
+
+#nav {
+  position:fixed; top:0; left:0; right:0; height:44px; background:#060a0f;
+  border-bottom:1px solid #0d1825; display:flex; align-items:center;
+  padding:0 16px; gap:0; z-index:100;
+}
+.nav-btn {
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  padding:6px 12px; border:1px solid transparent; background:transparent;
+  color:#2a3f55; cursor:pointer; font-family:'Courier New',monospace;
+  transition:all 0.15s; white-space:nowrap;
+}
+.nav-btn:hover { color:#4a6070; border-color:#0d1825; }
+.nav-btn.active { color:#aabbcc; border-color:#1e3040; background:#0d1420; }
+#nav-title { font-size:9px; color:#1a2d3d; letter-spacing:3px; margin-right:16px; flex-shrink:0; }
+
+#canvas { position:fixed; top:44px; left:0; right:0; bottom:0; overflow:hidden; }
+.viz { position:absolute; top:0; left:0; width:100%; height:100%; display:none; }
+.viz.active { display:flex; align-items:center; justify-content:center; }
+
+#tooltip {
+  position:fixed; pointer-events:none; z-index:200;
+  background:#0a0f16; border:1px solid #1a2530;
+  padding:10px 14px; font-size:9px; color:#8899aa;
+  display:none; max-width:280px; line-height:1.8;
+}
+.tt-title { font-size:10px; color:#aabbcc; font-weight:700; margin-bottom:5px; }
+</style>
+</head>
+<body>
+
+<div id="nav">
+  <span id="nav-title">INTENT MAP</span>
+  <button class="nav-btn active" data-viz="donut">Donut</button>
+  <button class="nav-btn" data-viz="stacked">Stacked Bar</button>
+  <button class="nav-btn" data-viz="treemap">Treemap</button>
+  <button class="nav-btn" data-viz="sunburst">Sunburst</button>
+  <button class="nav-btn" data-viz="chord">Chord</button>
+  <button class="nav-btn" data-viz="sankey">Sankey</button>
+  <button class="nav-btn" data-viz="heatmap">Heatmap</button>
+  <button class="nav-btn" data-viz="radar">Radar</button>
+  <button class="nav-btn" data-viz="bubble">Bubble</button>
+</div>
+
+<div id="canvas">
+  <div class="viz active" id="viz-donut"></div>
+  <div class="viz" id="viz-stacked"></div>
+  <div class="viz" id="viz-treemap"></div>
+  <div class="viz" id="viz-sunburst"></div>
+  <div class="viz" id="viz-chord"></div>
+  <div class="viz" id="viz-sankey"></div>
+  <div class="viz" id="viz-heatmap"></div>
+  <div class="viz" id="viz-radar"></div>
+  <div class="viz" id="viz-bubble"></div>
+</div>
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const Q = [
+  {id:"q44",  label:"fffiiinnneee",   g1:"DeFi",            g2:"On-chain Activity",      g3:"DEX Trading",           g4:"PnL Tracking",         param:true,  unique:4, complexity:3},
+  {id:"q49",  label:"test query",     g1:"Protocol Ops",    g2:"Cost Accounting",        g3:"Multi-env Comparison",  g4:"Gas vs Earnings",       param:false, unique:5, complexity:4},
+  {id:"q55",  label:"2690055",        g1:"Token Economics", g2:"Supply Tracking",        g3:"ERC-20 Token",          g4:"Circulating Supply",    param:false, unique:3, complexity:3},
+  {id:"q43",  label:"LZ 900K",        g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",       g4:"Activity Scoring",      param:false, unique:2, complexity:3},
+  {id:"q60",  label:"insh",           g1:"DeFi",            g2:"Wallet Surveillance",    g3:"DEX Flow Analysis",     g4:"Bot Detection",         param:false, unique:4, complexity:3},
+  {id:"q63",  label:"Exchange Flows", g1:"Market Structure",g2:"CEX Monitoring",         g3:"Token Deposit/Withdraw",g4:"Net Flow by Exchange",  param:false, unique:5, complexity:4},
+  {id:"q70",  label:"nihonden",       g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",       g4:"Activity Scoring",      param:false, unique:1, complexity:2},
+  {id:"q76",  label:"2690076",        g1:"Token Economics", g2:"Supply Tracking",        g3:"Governance Token",      g4:"Total Supply",          param:false, unique:3, complexity:3},
+  {id:"q81",  label:"Univ3 LPs",      g1:"DeFi",            g2:"AMM / Liquidity",        g3:"Uniswap V3 Pool",       g4:"Price + TVL",           param:false, unique:3, complexity:4},
+  {id:"q82",  label:"Notional Liq",   g1:"DeFi",            g2:"Lending / Credit",       g3:"Risk Monitoring",       g4:"Liquidation Events",    param:false, unique:4, complexity:4},
+  {id:"q85",  label:"DAU/PAU",        g1:"Network Metrics", g2:"User Activity",          g3:"Ethereum Mainnet",      g4:"Active Addresses",      param:false, unique:4, complexity:2},
+  {id:"q84",  label:"2690084",        g1:"DeFi",            g2:"Governance",             g3:"Vote-Escrowed Token",   g4:"veBAL Decay Model",     param:false, unique:5, complexity:5},
+  {id:"q88",  label:"CAI Benchmark",  g1:"Token Economics", g2:"Price Benchmarking",     g3:"Multi-token Comparison",g4:"Rolling Returns",       param:false, unique:4, complexity:4},
+  {id:"q90",  label:"LZ Stats",       g1:"Cross-chain",     g2:"Single Wallet Lookup",   g3:"LayerZero Protocol",    g4:"Activity Scoring",      param:true,  unique:3, complexity:2},
+  {id:"q93",  label:"LZ Forks x3",   g1:"Cross-chain",     g2:"User Profiling",         g3:"Airdrop Farming",       g4:"Activity Scoring",      param:false, unique:1, complexity:1},
+  {id:"q96",  label:"Lido Runway",    g1:"DAO Finance",     g2:"Operational Risk",       g3:"Treasury Management",   g4:"Runway Calculation",    param:false, unique:5, complexity:5},
+  {id:"q119", label:"2690119",        g1:"DAO Finance",     g2:"Portfolio Tracking",     g3:"Treasury Wallets",      g4:"Balance + USD Value",   param:false, unique:4, complexity:5},
+];
+
+const PAL = {
+  "DeFi":            "#00ff88",
+  "Cross-chain":     "#ff6b35",
+  "Token Economics": "#a78bfa",
+  "DAO Finance":     "#38bdf8",
+  "Protocol Ops":    "#fbbf24",
+  "Network Metrics": "#fb7185",
+  "Market Structure":"#34d399",
+};
+const DOMAINS = Object.keys(PAL);
+const col = d => PAL[d] || "#334";
+
+// tooltip helpers
+const TT = document.getElementById("tooltip");
+const TTT = document.getElementById("tt-title");
+const TTB = document.getElementById("tt-body");
+function showTT(event, title, body) {
+  TT.style.display="block";
+  TTT.textContent=title; TTB.innerHTML=body;
+  moveTT(event);
+}
+function moveTT(event) {
+  TT.style.left=(event.clientX+14)+"px";
+  TT.style.top=(event.clientY-10)+"px";
+}
+function hideTT(){ TT.style.display="none"; }
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+const rendered = {};
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", function(){
+    document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".viz").forEach(v=>v.classList.remove("active"));
+    this.classList.add("active");
+    const id = this.dataset.viz;
+    document.getElementById("viz-"+id).classList.add("active");
+    if (!rendered[id]) { rendered[id]=true; drawMap[id](); }
+  });
+});
+
+// ── SHARED DEFS ───────────────────────────────────────────────────────────────
+function mkSVG(container, w, h) {
+  const el = document.getElementById(container);
+  const svg = d3.select(el).append("svg").attr("width",w).attr("height",h);
+  const defs = svg.append("defs");
+  const glow = defs.append("filter").attr("id","glow-"+container);
+  glow.append("feGaussianBlur").attr("stdDeviation","2.5").attr("result","b");
+  const fm = glow.append("feMerge");
+  fm.append("feMergeNode").attr("in","b");
+  fm.append("feMergeNode").attr("in","SourceGraphic");
+  return svg;
+}
+
+function legend(svg, x, y) {
+  const lg = svg.append("g").attr("transform",`translate(${x},${y})`);
+  DOMAINS.forEach((d,i) => {
+    const row = lg.append("g").attr("transform",`translate(0,${i*18})`);
+    row.append("rect").attr("width",8).attr("height",8).attr("rx",2).attr("fill",col(d)).attr("opacity",0.8);
+    row.append("text").attr("x",14).attr("y",7).attr("font-size","9px").attr("fill","#3d5570").attr("font-family","monospace").text(d);
+  });
+}
+
+// ── 1. DONUT ──────────────────────────────────────────────────────────────────
+function drawDonut() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-donut",W,H);
+  const g=svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const counts={};
+  const varieties={};
+  Q.forEach(q=>{
+    counts[q.g1]=(counts[q.g1]||0)+1;
+    if(!varieties[q.g1]) varieties[q.g1]=new Set();
+    [q.g2,q.g3,q.g4].forEach(gx=>varieties[q.g1].add(gx));
+  });
+
+  const R=Math.min(W,H)*0.38;
+  const pie=d3.pie().value(d=>d[1]).sort(null);
+  const data=DOMAINS.filter(d=>counts[d]).map(d=>[d,counts[d]]);
+  const arcs=pie(data);
+
+  // outer: count
+  const arcOuter=d3.arc().innerRadius(R*0.55).outerRadius(R);
+  // inner: variety
+  const arcInner=d3.arc().innerRadius(R*0.22).outerRadius(R*0.52);
+
+  const pieVariety=d3.pie().value(d=>varieties[d[0]]?varieties[d[0]].size:0).sort(null);
+  const arcsV=pieVariety(data);
+
+  // outer slices
+  g.selectAll(".outer").data(arcs).join("path").attr("class","outer")
+    .attr("d",arcOuter)
+    .attr("fill",d=>col(d.data[0])+"33")
+    .attr("stroke",d=>col(d.data[0])+"99")
+    .attr("stroke-width",1)
+    .style("filter","url(#glow-viz-donut)")
+    .on("mouseover",(e,d)=>{
+      const dom=d.data[0];
+      const qs=Q.filter(q=>q.g1===dom);
+      showTT(e,dom,`<div style="color:#2a3f55;margin-bottom:4px">${d.data[1]} queries · ${varieties[dom]?.size||0} unique sub-genres</div>`+qs.map(q=>`<div style="color:${col(dom)}">▸ ${q.label}</div>`).join(""));
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  // inner slices (variety)
+  g.selectAll(".inner").data(arcsV).join("path").attr("class","inner")
+    .attr("d",arcInner)
+    .attr("fill",d=>col(d.data[0])+"55")
+    .attr("stroke",d=>col(d.data[0])+"88")
+    .attr("stroke-width",0.5);
+
+  // outer labels
+  arcs.forEach(d=>{
+    const angle=(d.startAngle+d.endAngle)/2;
+    const r=R*1.08;
+    g.append("text")
+      .attr("x",Math.sin(angle)*r).attr("y",-Math.cos(angle)*r)
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size","9px").attr("font-family","monospace")
+      .attr("fill",col(d.data[0])+"cc")
+      .text(`${d.data[0]} (${d.data[1]})`);
+  });
+
+  // center labels
+  g.append("text").attr("text-anchor","middle").attr("dy","-0.8em")
+    .attr("font-size","9px").attr("fill","#2a3f55").attr("font-family","monospace").text("OUTER = COUNT");
+  g.append("text").attr("text-anchor","middle").attr("dy","0.6em")
+    .attr("font-size","9px").attr("fill","#1a2d3d").attr("font-family","monospace").text("INNER = VARIETY");
+
+  legend(svg, 20, 60);
+
+  // annotation
+  svg.append("text").attr("x",W-20).attr("y",H-20).attr("text-anchor","end")
+    .attr("font-size","9px").attr("fill","#1a2d3d").attr("font-family","monospace")
+    .text("Cross-chain dominates by count · DeFi by variety");
+}
+
+// ── 2. STACKED BAR ────────────────────────────────────────────────────────────
+function drawStacked() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-stacked",W,H);
+  const margin={top:60,right:180,bottom:60,left:120};
+  const w=W-margin.left-margin.right, h=H-margin.top-margin.bottom;
+  const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  // For each domain, count unique genres at each layer
+  const layers=["g2","g3","g4"];
+  const layerNames=["Category","Focus","Method"];
+
+  const domData=DOMAINS.filter(d=>Q.some(q=>q.g1===d)).map(d=>{
+    const qs=Q.filter(q=>q.g1===d);
+    const obj={domain:d};
+    layers.forEach((l,i)=>{
+      obj[layerNames[i]]=new Set(qs.map(q=>q[l])).size;
+    });
+    obj.total=qs.length;
+    return obj;
+  });
+
+  const x=d3.scaleLinear().domain([0,d3.max(domData,d=>d.total+d.Category+d.Focus+d.Method)]).range([0,w]);
+  const y=d3.scaleBand().domain(domData.map(d=>d.domain)).range([0,h]).padding(0.3);
+  const stack=d3.stack().keys(["total",...layerNames]);
+  const stacked=stack(domData.map(d=>({domain:d.domain,total:d.total,Category:d.Category,Focus:d.Focus,Method:d.Method})));
+
+  const stackCols={"total":"#ffffff18","Category":"#ffffff22","Focus":"#ffffff18","Method":"#ffffff10"};
+
+  // Domain bars
+  domData.forEach(d=>{
+    // count bar
+    g.append("rect")
+      .attr("x",0).attr("y",y(d.domain))
+      .attr("width",x(d.total)).attr("height",y.bandwidth()*0.45)
+      .attr("fill",col(d.domain)+"44").attr("stroke",col(d.domain)+"88").attr("stroke-width",1);
+
+    g.append("text").attr("x",x(d.total)+6).attr("y",y(d.domain)+y.bandwidth()*0.22)
+      .attr("dominant-baseline","middle").attr("font-size","9px")
+      .attr("fill",col(d.domain)+"cc").attr("font-family","monospace")
+      .text(`${d.total} quer${d.total===1?"y":"ies"}`);
+
+    // variety bars
+    let cumX=0;
+    layerNames.forEach((ln,li)=>{
+      const v=d[ln];
+      const bw=x(v);
+      g.append("rect")
+        .attr("x",cumX).attr("y",y(d.domain)+y.bandwidth()*0.52)
+        .attr("width",bw).attr("height",y.bandwidth()*0.45)
+        .attr("fill",col(d.domain)+(li===0?"55":li===1?"33":"22"))
+        .attr("stroke",col(d.domain)+"44").attr("stroke-width",0.5)
+        .on("mouseover",e=>showTT(e,`${d.domain} — ${ln}`,`<div style="color:#2a3f55">${v} unique ${ln.toLowerCase()} genres</div>`))
+        .on("mousemove",moveTT).on("mouseout",hideTT);
+      cumX+=bw+2;
+    });
+
+    g.append("text").attr("x",-8).attr("y",y(d.domain)+y.bandwidth()*0.5)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-size","9px").attr("fill",col(d.domain)+"cc").attr("font-family","monospace")
+      .text(d.domain);
+  });
+
+  // Axes
+  g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")))
+    .call(a=>{a.selectAll("text").attr("fill","#2a3f55").attr("font-size","8px").attr("font-family","monospace"); a.select(".domain").attr("stroke","#0d1825"); a.selectAll(".tick line").attr("stroke","#0d1825");});
+
+  // Legend for rows
+  const rowLeg=svg.append("g").attr("transform",`translate(${W-margin.right+10},${margin.top})`);
+  [["Top bar","Query count","#ffffff44"],["Bottom bar","Genre variety",col("DeFi")+"55"]].forEach(([k,v,c],i)=>{
+    rowLeg.append("rect").attr("y",i*20).attr("width",10).attr("height",8).attr("fill",c);
+    rowLeg.append("text").attr("x",14).attr("y",i*20+7).attr("font-size","8px").attr("fill","#3d5570").attr("font-family","monospace").text(v);
+  });
+  layerNames.forEach((ln,i)=>{
+    rowLeg.append("rect").attr("y",50+i*18).attr("width",10).attr("height",8).attr("fill","#ffffff"+(i===0?"55":i===1?"33":"22"));
+    rowLeg.append("text").attr("x",14).attr("y",50+i*18+7).attr("font-size","8px").attr("fill","#3d5570").attr("font-family","monospace").text(ln);
+  });
+
+  svg.append("text").attr("x",W/2).attr("y",30).attr("text-anchor","middle")
+    .attr("font-size","10px").attr("fill","#2a3f55").attr("font-family","monospace").attr("letter-spacing","3")
+    .text("QUERY COUNT vs GENRE VARIETY PER DOMAIN");
+}
+
+// ── 3. TREEMAP ────────────────────────────────────────────────────────────────
+function drawTreemap() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-treemap",W,H);
+
+  const root=d3.hierarchy({name:"root",children:
+    DOMAINS.filter(d=>Q.some(q=>q.g1===d)).map(d=>({
+      name:d,
+      children:Object.values(Q.filter(q=>q.g1===d).reduce((acc,q)=>{
+        if(!acc[q.g2]) acc[q.g2]={name:q.g2,domain:d,children:[]};
+        acc[q.g2].children.push({name:q.label,domain:d,id:q.id,value:1});
+        return acc;
+      },{}))
+    }))
+  }).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+
+  d3.treemap().size([W,H]).padding(3).paddingTop(20)(root);
+
+  // Draw leaves
+  const leaf=svg.selectAll(".leaf").data(root.leaves()).join("g").attr("class","leaf")
+    .attr("transform",d=>`translate(${d.x0},${d.y0})`);
+
+  leaf.append("rect")
+    .attr("width",d=>Math.max(0,d.x1-d.x0))
+    .attr("height",d=>Math.max(0,d.y1-d.y0))
+    .attr("fill",d=>col(d.data.domain)+"22")
+    .attr("stroke",d=>col(d.data.domain)+"55")
+    .attr("stroke-width",1)
+    .on("mouseover",(e,d)=>{
+      const q=Q.find(x=>x.id===d.data.id);
+      showTT(e,d.data.name,`<div style="color:${col(d.data.domain)}">${d.data.domain}</div><div style="color:#2a3f55">${q?.g2} › ${q?.g3} › ${q?.g4}</div>`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  leaf.append("text")
+    .attr("x",4).attr("y",13)
+    .attr("font-size",d=>Math.min(11,Math.max(7,(d.x1-d.x0)/9))+"px")
+    .attr("fill",d=>col(d.data.domain)+"cc")
+    .attr("font-family","monospace").attr("font-weight","700")
+    .text(d=>d.x1-d.x0>40?d.data.name:"");
+
+  // Domain headers
+  root.children.forEach(dom=>{
+    svg.append("rect")
+      .attr("x",dom.x0).attr("y",dom.y0)
+      .attr("width",dom.x1-dom.x0).attr("height",18)
+      .attr("fill",col(dom.data.name)+"33");
+    svg.append("text")
+      .attr("x",dom.x0+6).attr("y",dom.y0+13)
+      .attr("font-size","9px").attr("fill",col(dom.data.name)+"ee")
+      .attr("font-family","monospace").attr("font-weight","700")
+      .text(`${dom.data.name} (${dom.value})`);
+    // sub-domain lines
+    dom.children?.forEach(sub=>{
+      svg.append("rect")
+        .attr("x",sub.x0).attr("y",sub.y0)
+        .attr("width",sub.x1-sub.x0).attr("height",1)
+        .attr("fill",col(dom.data.name)+"44");
+    });
+  });
+}
+
+// ── 4. SUNBURST ───────────────────────────────────────────────────────────────
+function drawSunburst() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const R=Math.min(W,H)*0.46;
+  const svg=mkSVG("viz-sunburst",W,H);
+  const g=svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const treeData={name:"root",children:[]};
+  const find=(arr,name)=>arr.find(d=>d.name===name);
+  Q.forEach(q=>{
+    [q.g1,q.g2,q.g3,q.g4,q.label].forEach((layer,i,arr)=>{
+      let cur=(i===0?treeData.children:find(find(treeData.children.flatMap(x=>x.children||[]).flatMap(x=>x.children||[]).flatMap(x=>x.children||[]),arr[i-1])?.children||treeData.children,arr[i-1])?.children)||[];
+      // simpler recursive
+    });
+  });
+
+  // Rebuild properly
+  const root2={name:"root",children:[]};
+  Q.forEach(q=>{
+    const layers=[q.g1,q.g2,q.g3,q.g4,q.label];
+    let cur=root2.children;
+    layers.forEach((l,i)=>{
+      let node=cur.find(n=>n.name===l);
+      if(!node){
+        node={name:l,domain:q.g1,level:i+1,children:[]};
+        cur.push(node);
+      }
+      if(i===4){node.value=1;delete node.children;}
+      cur=node.children||[];
+    });
+  });
+
+  const hierarchy=d3.hierarchy(root2).sum(d=>d.value||0).sort((a,b)=>b.value-a.value);
+  const partition=d3.partition().size([2*Math.PI,R]);
+  partition(hierarchy);
+
+  const maxD=5;
+  const ir=R*0.18, rw=(R-ir)/maxD;
+  const ri=d=>d.depth===0?0:ir+(d.depth-1)*rw;
+  const ro=d=>d.depth===0?ir:ir+d.depth*rw-2;
+
+  const arc=d3.arc().startAngle(d=>d.x0).endAngle(d=>d.x1)
+    .innerRadius(d=>ri(d)).outerRadius(d=>ro(d)).padAngle(0.012);
+
+  let currentRoot=hierarchy;
+
+  function update(root){
+    currentRoot=root;
+    g.selectAll("path.sp").remove();
+    g.selectAll("text.sp").remove();
+
+    const as=(d,r)=>Math.max(0,Math.min(1,(d.x0-r.x0)/(r.x1-r.x0)))*2*Math.PI;
+    const ae=(d,r)=>Math.max(0,Math.min(1,(d.x1-r.x0)/(r.x1-r.x0)))*2*Math.PI;
+    const dd=d=>d.depth-root.depth;
+
+    const arcZ=d3.arc()
+      .startAngle(d=>as(d,root)).endAngle(d=>ae(d,root))
+      .innerRadius(d=>dd(d)<=0?0:ir+(dd(d)-1)*rw)
+      .outerRadius(d=>dd(d)<=0?ir:ir+dd(d)*rw-2).padAngle(0.012);
+
+    const desc=root.descendants().filter(d=>dd(d)>=0&&dd(d)<=maxD&&(d.x1-d.x0)>0.002);
+
+    g.selectAll("path.sp").data(desc,d=>d.data.name+d.depth).join("path").attr("class","sp")
+      .attr("d",arcZ)
+      .attr("fill",d=>{
+        if(dd(d)===0)return"#060a0f";
+        let n=d;while(n.depth>1)n=n.parent;
+        const base=col(n.depth===0?"":n.data.name);
+        return base+(["","44","33","22","18","12"][dd(d)]||"12");
+      })
+      .attr("stroke",d=>{let n=d;while(n.depth>1)n=n.parent;return col(n.depth===0?"":n.data.name)+"30";})
+      .attr("stroke-width",0.5).attr("cursor",d=>d.children?"pointer":"default")
+      .on("click",(e,d)=>{ if(!d.children)return; update(d===currentRoot?(d.parent||hierarchy):d); })
+      .on("mouseover",(e,d)=>{
+        if(dd(d)===0)return;
+        let n=d;while(n.depth>1)n=n.parent;
+        showTT(e,d.data.name,`<div style="color:${col(n.data.name)}">${n.data.name}</div><div style="color:#2a3f55">Layer ${dd(d)} · ${d.value} quer${d.value===1?"y":"ies"}</div>`);
+      })
+      .on("mousemove",moveTT).on("mouseout",hideTT);
+
+    // Labels
+    desc.filter(d=>dd(d)>0&&dd(d)<5&&(d.x1-d.x0)>0.15).forEach(d=>{
+      const angle=((as(d,root)+ae(d,root))/2);
+      const r=ir+(dd(d)-0.5)*rw;
+      const rot=angle*180/Math.PI-90;
+      const flip=rot>90&&rot<270;
+      g.append("text").attr("class","sp")
+        .attr("transform",`translate(${Math.sin(angle)*r},${-Math.cos(angle)*r}) rotate(${flip?rot+180:rot})`)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",Math.max(7,10-dd(d)*1.2)+"px").attr("font-family","monospace")
+        .attr("fill","#4a6070").attr("pointer-events","none")
+        .text(d.data.name.length>12?d.data.name.slice(0,11)+"…":d.data.name);
+    });
+  }
+  update(hierarchy);
+  g.append("text").attr("text-anchor","middle").attr("dy","0.35em")
+    .attr("font-size","8px").attr("fill","#1a2d3d").attr("font-family","monospace").text("click to zoom");
+}
+
+// ── 5. CHORD ──────────────────────────────────────────────────────────────────
+function drawChord() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const R=Math.min(W,H)*0.4;
+  const svg=mkSVG("viz-chord",W,H);
+  const g=svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const genres=[...new Set(Q.flatMap(q=>[q.g1,q.g2,q.g3,q.g4]))];
+  const n=genres.length;
+  const idx=Object.fromEntries(genres.map((g,i)=>[g,i]));
+  const matrix=Array.from({length:n},()=>new Array(n).fill(0));
+  const gq=Object.fromEntries(genres.map(g=>[g,[]]));
+
+  Q.forEach(q=>{
+    const gs=[q.g1,q.g2,q.g3,q.g4];
+    gs.forEach(gi=>{
+      gs.forEach(gj=>{ if(gi!==gj)matrix[idx[gi]][idx[gj]]++; });
+      gq[gi].push(q);
+      matrix[idx[gi]][idx[gi]]+=1;
+    });
+  });
+
+  const chord=d3.chord().padAngle(0.03).sortSubgroups(d3.descending)(matrix);
+  const ir=R*0.72, or=R*0.8;
+  const arcGen=d3.arc().innerRadius(ir).outerRadius(or);
+  const ribbon=d3.ribbon().radius(ir-2);
+
+  function getDom(genre){
+    const q=Q.find(q=>[q.g1,q.g2,q.g3,q.g4].includes(genre));
+    return q?q.g1:null;
+  }
+  function gc(genre){ return col(getDom(genre)||""); }
+
+  const chordPaths=g.selectAll("path.ch").data(chord).join("path").attr("class","ch")
+    .attr("d",ribbon).attr("fill",d=>gc(genres[d.source.index])+"20")
+    .attr("stroke",d=>gc(genres[d.source.index])+"40").attr("stroke-width",0.5).attr("opacity",0.6)
+    .on("mouseover",(e,d)=>{
+      const g1=genres[d.source.index],g2=genres[d.target.index];
+      d3.select(e.target).attr("opacity",1).attr("fill",gc(g1)+"50");
+      if(g1===g2)return;
+      const shared=Q.filter(q=>{const gs=[q.g1,q.g2,q.g3,q.g4];return gs.includes(g1)&&gs.includes(g2);});
+      showTT(e,`${g1} ↔ ${g2}`,`<div style="color:#2a3f55;margin-bottom:4px">${shared.length} shared</div>`+shared.map(q=>`<div style="color:${col(q.g1)}">▸ ${q.label}</div>`).join(""));
+    })
+    .on("mousemove",moveTT)
+    .on("mouseout",(e,d)=>{ d3.select(e.target).attr("opacity",0.6).attr("fill",d=>gc(genres[d.source.index])+"20"); hideTT(); });
+
+  const grp=g.selectAll("g.cg").data(chord.groups).join("g").attr("class","cg");
+  grp.append("path").attr("d",arcGen)
+    .attr("fill",d=>gc(genres[d.index])+"30").attr("stroke",d=>gc(genres[d.index])+"80").attr("stroke-width",1)
+    .on("mouseover",(e,d)=>{
+      const genre=genres[d.index];
+      chordPaths.attr("opacity",c=>c.source.index===d.index||c.target.index===d.index?1:0.05);
+      showTT(e,genre,`<div style="color:#2a3f55;margin-bottom:4px">${gq[genre].length} queries</div>`+gq[genre].map(q=>`<div style="color:${col(q.g1)}">▸ ${q.label}</div>`).join(""));
+    })
+    .on("mousemove",moveTT)
+    .on("mouseout",()=>{ chordPaths.attr("opacity",0.6); hideTT(); });
+
+  grp.filter(d=>(d.endAngle-d.startAngle)>0.12).append("text")
+    .attr("transform",d=>{
+      const a=(d.startAngle+d.endAngle)/2;
+      const r=or+12;
+      const rot=a*180/Math.PI-90;
+      const flip=rot>90&&rot<270;
+      return `translate(${Math.sin(a)*r},${-Math.cos(a)*r}) rotate(${flip?rot+180:rot})`;
+    })
+    .attr("text-anchor",d=>{ const a=(d.startAngle+d.endAngle)/2,rot=a*180/Math.PI-90; return(rot>90&&rot<270)?"end":"start"; })
+    .attr("dominant-baseline","middle").attr("font-size","7.5px").attr("font-family","monospace")
+    .attr("fill",d=>gc(genres[d.index])+"bb")
+    .text(d=>{ const s=genres[d.index]; return s.length>14?s.slice(0,13)+"…":s; });
+}
+
+// ── 6. SANKEY ─────────────────────────────────────────────────────────────────
+function drawSankey() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-sankey",W,H);
+  const margin={top:40,right:180,bottom:40,left:40};
+  const w=W-margin.left-margin.right, h=H-margin.top-margin.bottom;
+  const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  const layers=["g1","g2","g3","g4"];
+  const layerNames=["Domain","Category","Focus","Method"];
+  const nodeMap={};
+  const nodes=[];
+  const links=[];
+
+  function getNode(name,layer){
+    const key=`${layer}::${name}`;
+    if(!nodeMap[key]){ nodeMap[key]=nodes.length; nodes.push({name,layer,key}); }
+    return nodeMap[key];
+  }
+
+  Q.forEach(q=>{
+    layers.forEach((l,i)=>{
+      if(i<layers.length-1){
+        const s=getNode(q[l],i), t=getNode(q[layers[i+1]],i+1);
+        const ex=links.find(lk=>lk.source===s&&lk.target===t);
+        if(ex) ex.value++;
+        else links.push({source:s,target:t,value:1,domain:q.g1});
+      }
+    });
+    getNode(q[layers[0]],0);
+  });
+
+  const layerCols=layers.map((_,i)=>w*i/3);
+  const nodesByLayer=layers.map((_,i)=>nodes.filter(n=>n.layer===i));
+
+  // Position nodes
+  nodesByLayer.forEach((layerNodes,li)=>{
+    const total=layerNodes.reduce((s,n)=>{
+      n.value=links.filter(l=>l.source===nodeMap[n.key]||l.target===nodeMap[n.key]).reduce((a,l)=>a+l.value,0)||1;
+      return s+n.value;
+    },0);
+    const pad=8, available=h-pad*(layerNodes.length-1);
+    let y=0;
+    layerNodes.forEach(n=>{
+      n.h=Math.max(20,n.value/total*available);
+      n.x=layerCols[li]; n.y=y; y+=n.h+pad;
+    });
+  });
+
+  // Draw links
+  links.forEach(lk=>{
+    const s=nodes[lk.source], t=nodes[lk.target];
+    const sw=Math.max(1,lk.value*8);
+    const x1=s.x+120, y1=s.y+s.h/2, x2=t.x, y2=t.y+t.h/2;
+    g.append("path")
+      .attr("d",`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`)
+      .attr("fill","none").attr("stroke",col(lk.domain)+"44")
+      .attr("stroke-width",sw).attr("opacity",0.5)
+      .on("mouseover",(e)=>{ d3.select(e.target).attr("opacity",0.9); showTT(e,`${nodes[lk.source].name} → ${nodes[lk.target].name}`,`<div style="color:#2a3f55">${lk.value} quer${lk.value===1?"y":"ies"}</div>`); })
+      .on("mousemove",moveTT).on("mouseout",(e)=>{ d3.select(e.target).attr("opacity",0.5); hideTT(); });
+  });
+
+  // Draw nodes
+  nodes.forEach(n=>{
+    const domQ=Q.find(q=>q.g1===n.name||q.g2===n.name||q.g3===n.name||q.g4===n.name);
+    const domCol=col(domQ?.g1||n.name);
+    g.append("rect").attr("x",n.x).attr("y",n.y).attr("width",118).attr("height",n.h)
+      .attr("fill",domCol+"22").attr("stroke",domCol+"66").attr("stroke-width",1).attr("rx",2);
+    if(n.h>12){
+      g.append("text").attr("x",n.x+6).attr("y",n.y+n.h/2)
+        .attr("dominant-baseline","middle").attr("font-size",Math.min(10,Math.max(7,n.h*0.5))+"px")
+        .attr("font-family","monospace").attr("fill",domCol+"cc")
+        .text(n.name.length>14?n.name.slice(0,13)+"…":n.name);
+    }
+  });
+
+  // Column headers
+  layerNames.forEach((ln,i)=>{
+    g.append("text").attr("x",layerCols[i]+59).attr("y",-16)
+      .attr("text-anchor","middle").attr("font-size","9px").attr("fill","#2a3f55")
+      .attr("font-family","monospace").attr("letter-spacing","2").text(ln);
+  });
+}
+
+// ── 7. HEATMAP ────────────────────────────────────────────────────────────────
+function drawHeatmap() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-heatmap",W,H);
+
+  const allGenres=[...new Set(Q.flatMap(q=>[q.g1,q.g2,q.g3,q.g4]))];
+  const margin={top:30,right:20,bottom:160,left:130};
+  const w=W-margin.left-margin.right, h=H-margin.top-margin.bottom;
+
+  const cw=w/allGenres.length, rh=Math.min(32,h/Q.length);
+
+  const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  Q.forEach((q,ri)=>{
+    allGenres.forEach((genre,ci)=>{
+      const present=[q.g1,q.g2,q.g3,q.g4].includes(genre);
+      const layer=[q.g1,q.g2,q.g3,q.g4].indexOf(genre)+1;
+      const layerCol=["","55","44","33","22"][layer]||"00";
+      g.append("rect")
+        .attr("x",ci*cw).attr("y",ri*rh).attr("width",cw-1).attr("height",rh-1)
+        .attr("fill",present?col(q.g1)+layerCol:"#ffffff04")
+        .attr("stroke",present?col(q.g1)+"33":"#0d1825").attr("stroke-width",0.5)
+        .on("mouseover",e=>{ if(present)showTT(e,`${q.label} × ${genre}`,`<div style="color:${col(q.g1)}">${q.g1}</div><div style="color:#2a3f55">Layer ${layer}</div>`); })
+        .on("mousemove",moveTT).on("mouseout",hideTT);
+    });
+
+    // Row label
+    g.append("text").attr("x",-6).attr("y",ri*rh+rh/2)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-size","8.5px").attr("fill",col(q.g1)+"cc").attr("font-family","monospace")
+      .text(q.label.length>14?q.label.slice(0,13)+"…":q.label);
+  });
+
+  // Column labels
+  allGenres.forEach((genre,ci)=>{
+    g.append("text")
+      .attr("transform",`translate(${ci*cw+cw/2},${Q.length*rh+8}) rotate(45)`)
+      .attr("text-anchor","start").attr("dominant-baseline","middle")
+      .attr("font-size","7.5px").attr("fill","#2a3f55").attr("font-family","monospace")
+      .text(genre.length>12?genre.slice(0,11)+"…":genre);
+  });
+
+  // Layer intensity legend
+  const ll=svg.append("g").attr("transform",`translate(${margin.left},${H-28})`);
+  ["Layer 1 (Domain)","Layer 2","Layer 3","Layer 4 (Method)"].forEach((t,i)=>{
+    ll.append("rect").attr("x",i*140).attr("width",14).attr("height",10).attr("rx",1)
+      .attr("fill",col("DeFi")+(["55","44","33","22"][i]));
+    ll.append("text").attr("x",i*140+18).attr("y",8).attr("font-size","8px").attr("fill","#2a3f55").attr("font-family","monospace").text(t);
+  });
+}
+
+// ── 8. RADAR ─────────────────────────────────────────────────────────────────
+function drawRadar() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-radar",W,H);
+  const R=Math.min(W,H)*0.32;
+  const g=svg.append("g").attr("transform",`translate(${W/2},${H/2})`);
+
+  const axes=["Query Count","Genre Variety","Avg Uniqueness","Avg Complexity","Parameterized %","Layer Depth"];
+  const n=axes.length;
+  const angleStep=2*Math.PI/n;
+
+  // Compute per-domain scores (normalized 0-1)
+  const domainStats=DOMAINS.filter(d=>Q.some(q=>q.g1===d)).map(d=>{
+    const qs=Q.filter(q=>q.g1===d);
+    const count=qs.length;
+    const variety=new Set(qs.flatMap(q=>[q.g2,q.g3,q.g4])).size;
+    const avgUniq=qs.reduce((a,q)=>a+q.unique,0)/qs.length;
+    const avgComp=qs.reduce((a,q)=>a+q.complexity,0)/qs.length;
+    const paramPct=qs.filter(q=>q.param).length/qs.length;
+    const depth=qs.reduce((a,q)=>a+(q.g4?4:q.g3?3:2),0)/qs.length;
+    return {domain:d, values:[count,variety,avgUniq,avgComp,paramPct*5,depth]};
+  });
+
+  const maxVals=axes.map((_,i)=>d3.max(domainStats,d=>d.values[i]));
+
+  // Grid rings
+  [0.2,0.4,0.6,0.8,1].forEach(t=>{
+    const pts=d3.range(n).map(i=>{
+      const a=i*angleStep-Math.PI/2;
+      return [Math.cos(a)*R*t, Math.sin(a)*R*t];
+    });
+    g.append("polygon").attr("points",pts.map(p=>p.join(",")).join(" "))
+      .attr("fill","none").attr("stroke","#0d1825").attr("stroke-width",1);
+  });
+
+  // Axis lines
+  d3.range(n).forEach(i=>{
+    const a=i*angleStep-Math.PI/2;
+    g.append("line").attr("x1",0).attr("y1",0)
+      .attr("x2",Math.cos(a)*R).attr("y2",Math.sin(a)*R)
+      .attr("stroke","#0d1825").attr("stroke-width",1);
+    const lr=R*1.15;
+    g.append("text").attr("x",Math.cos(a)*lr).attr("y",Math.sin(a)*lr)
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size","8px").attr("fill","#2a3f55").attr("font-family","monospace")
+      .text(axes[i]);
+  });
+
+  // Domain polygons
+  domainStats.forEach(({domain,values})=>{
+    const pts=values.map((v,i)=>{
+      const norm=v/maxVals[i];
+      const a=i*angleStep-Math.PI/2;
+      return [Math.cos(a)*R*norm, Math.sin(a)*R*norm];
+    });
+    g.append("polygon").attr("points",pts.map(p=>p.join(",")).join(" "))
+      .attr("fill",col(domain)+"18").attr("stroke",col(domain)+"88").attr("stroke-width",1.5)
+      .style("filter","url(#glow-viz-radar)")
+      .on("mouseover",(e)=>{
+        showTT(e,domain,axes.map((ax,i)=>`<div style="color:#2a3f55">${ax}: <span style="color:${col(domain)}">${values[i].toFixed(1)}</span></div>`).join(""));
+      })
+      .on("mousemove",moveTT).on("mouseout",hideTT);
+
+    // Dots
+    pts.forEach(([x,y])=>{
+      g.append("circle").attr("cx",x).attr("cy",y).attr("r",3)
+        .attr("fill",col(domain)).attr("opacity",0.8);
+    });
+  });
+
+  legend(svg, 16, 60);
+}
+
+// ── 9. BUBBLE ────────────────────────────────────────────────────────────────
+function drawBubble() {
+  const W=window.innerWidth, H=window.innerHeight-44;
+  const svg=mkSVG("viz-bubble",W,H);
+  const margin={top:60,right:60,bottom:70,left:80};
+  const w=W-margin.left-margin.right, h=H-margin.top-margin.bottom;
+  const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  // Aggregate by g3 cluster
+  const clusters={};
+  Q.forEach(q=>{
+    const key=q.g3;
+    if(!clusters[key]) clusters[key]={name:key,domain:q.g1,queries:[],totalUniq:0,totalComp:0};
+    clusters[key].queries.push(q);
+    clusters[key].totalUniq+=q.unique;
+    clusters[key].totalComp+=q.complexity;
+  });
+
+  const bubbles=Object.values(clusters).map(c=>({
+    name:c.name, domain:c.domain,
+    x:c.totalComp/c.queries.length,  // avg complexity = specificity depth
+    y:c.totalUniq/c.queries.length,  // avg uniqueness
+    r:c.queries.length,               // query count
+    queries:c.queries
+  }));
+
+  const xScale=d3.scaleLinear().domain([0,5.5]).range([0,w]);
+  const yScale=d3.scaleLinear().domain([0,5.5]).range([h,0]);
+  const rScale=d3.scaleSqrt().domain([1,d3.max(bubbles,d=>d.r)]).range([10,46]);
+
+  // Grid
+  [1,2,3,4,5].forEach(v=>{
+    g.append("line").attr("x1",xScale(v)).attr("y1",0).attr("x2",xScale(v)).attr("y2",h).attr("stroke","#0d1825").attr("stroke-width",1).attr("stroke-dasharray","3,3");
+    g.append("line").attr("x1",0).attr("y1",yScale(v)).attr("x2",w).attr("y2",yScale(v)).attr("stroke","#0d1825").attr("stroke-width",1).attr("stroke-dasharray","3,3");
+  });
+
+  // Quadrant labels
+  const QL=[["LOW VALUE\nHIGH VOLUME",0.1,0.9],["HIGH VALUE\nLOW VOLUME",0.6,0.9],["COMMODITY",0.1,0.1],["NICHE",0.6,0.1]];
+  QL.forEach(([txt,fx,fy])=>{
+    g.append("text").attr("x",w*fx).attr("y",h*fy)
+      .attr("font-size","8px").attr("fill","#0d1825").attr("font-family","monospace").attr("letter-spacing","1")
+      .text(txt.split("\n")[0]);
+    if(txt.includes("\n"))
+      g.append("text").attr("x",w*fx).attr("y",h*fy+12)
+        .attr("font-size","8px").attr("fill","#0d1825").attr("font-family","monospace").text(txt.split("\n")[1]);
+  });
+
+  // Divider lines
+  g.append("line").attr("x1",w/2).attr("y1",0).attr("x2",w/2).attr("y2",h).attr("stroke","#1a2d3d").attr("stroke-width",1);
+  g.append("line").attr("x1",0).attr("y1",h/2).attr("x2",w).attr("y2",h/2).attr("stroke","#1a2d3d").attr("stroke-width",1);
+
+  // Bubbles
+  const sim=d3.forceSimulation(bubbles)
+    .force("x",d3.forceX(d=>xScale(d.x)).strength(0.6))
+    .force("y",d3.forceY(d=>yScale(d.y)).strength(0.6))
+    .force("collision",d3.forceCollide(d=>rScale(d.r)+3))
+    .stop();
+  for(let i=0;i<80;i++) sim.tick();
+
+  g.selectAll("circle.bub").data(bubbles).join("circle").attr("class","bub")
+    .attr("cx",d=>d.x).attr("cy",d=>d.y).attr("r",d=>rScale(d.r))
+    .attr("fill",d=>col(d.domain)+"28").attr("stroke",d=>col(d.domain)+"88").attr("stroke-width",1.5)
+    .style("filter","url(#glow-viz-bubble)")
+    .on("mouseover",(e,d)=>{
+      showTT(e,d.name,`<div style="color:${col(d.domain)}">${d.domain}</div><div style="color:#2a3f55">Complexity: ${d.x.toFixed(1)} · Uniqueness: ${d.y.toFixed(1)} · ${d.r} quer${d.r===1?"y":"ies"}</div><br>${d.queries.map(q=>`<div style="color:${col(q.g1)}">▸ ${q.label}</div>`).join("")}`);
+    })
+    .on("mousemove",moveTT).on("mouseout",hideTT);
+
+  g.selectAll("text.bub").data(bubbles).join("text").attr("class","bub")
+    .attr("x",d=>d.x).attr("y",d=>d.y).attr("text-anchor","middle").attr("dominant-baseline","middle")
+    .attr("font-size",d=>Math.min(9,rScale(d.r)*0.3)+"px").attr("font-family","monospace")
+    .attr("fill",d=>col(d.domain)+"cc").attr("pointer-events","none")
+    .text(d=>d.name.length>10?d.name.slice(0,9)+"…":d.name);
+
+  // Axes
+  g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(xScale).ticks(5))
+    .call(a=>{a.selectAll("text").attr("fill","#2a3f55").attr("font-size","8px").attr("font-family","monospace");a.select(".domain").attr("stroke","#0d1825");a.selectAll(".tick line").attr("stroke","#0d1825");});
+  g.append("g").call(d3.axisLeft(yScale).ticks(5))
+    .call(a=>{a.selectAll("text").attr("fill","#2a3f55").attr("font-size","8px").attr("font-family","monospace");a.select(".domain").attr("stroke","#0d1825");a.selectAll(".tick line").attr("stroke","#0d1825");});
+
+  svg.append("text").attr("x",margin.left+w/2).attr("y",H-12).attr("text-anchor","middle")
+    .attr("font-size","8px").attr("fill","#2a3f55").attr("font-family","monospace").text("← simpler · SPECIFICITY DEPTH · complex →");
+  svg.append("text").attr("transform",`translate(14,${margin.top+h/2}) rotate(-90)`)
+    .attr("text-anchor","middle").attr("font-size","8px").attr("fill","#2a3f55").attr("font-family","monospace").text("← commodity · UNIQUENESS · novel →");
+  svg.append("text").attr("x",margin.left+w/2).attr("y",24).attr("text-anchor","middle")
+    .attr("font-size","9px").attr("fill","#2a3f55").attr("font-family","monospace").attr("letter-spacing","3")
+    .text("QUERY CLUSTER POSITIONING · size = query count");
+
+  legend(svg,W-margin.right-20,60);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+const drawMap = {
+  donut:   drawDonut,
+  stacked: drawStacked,
+  treemap: drawTreemap,
+  sunburst:drawSunburst,
+  chord:   drawChord,
+  sankey:  drawSankey,
+  heatmap: drawHeatmap,
+  radar:   drawRadar,
+  bubble:  drawBubble,
+};
+
+rendered["donut"]=true;
+drawDonut();
+</script>
+</body>
+</html>

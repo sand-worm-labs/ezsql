@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Query Intent Chord Diagram</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060a0f; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+
+  #title { position: fixed; top: 20px; left: 24px; z-index: 10; }
+  #title h1 { font-size: 11px; color: #2a3f55; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 4px; }
+  #title p { font-size: 9px; color: #1a2d3d; letter-spacing: 1px; }
+
+  #legend { position: fixed; top: 20px; right: 24px; z-index: 10; display: flex; flex-direction: column; gap: 7px; }
+  .leg { display: flex; align-items: center; gap: 8px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .leg-text { font-size: 9px; color: #3d5570; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 20;
+    background: #0a0f16; border: 1px solid #1a2530;
+    padding: 10px 14px; font-size: 9px; color: #8899aa;
+    display: none; max-width: 260px; line-height: 1.8;
+  }
+  #tooltip .tt-title { font-size: 10px; color: #aabbcc; font-weight: 700; margin-bottom: 6px; letter-spacing: 1px; }
+
+  #info { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #1a2d3d; letter-spacing: 2px; }
+
+  #filter { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); display: flex; gap: 0; z-index: 10; }
+  .filter-btn {
+    font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 5px 12px; border: 1px solid #0d1825; background: transparent;
+    color: #2a3f55; cursor: pointer; font-family: 'Courier New', monospace;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { color: #4a6070; border-color: #1a2d3d; }
+  .filter-btn.active { color: #aabbcc; border-color: #1e3040; background: #0d1420; }
+</style>
+</head>
+<body>
+
+<div id="title">
+  <h1>Query Intent Chord</h1>
+  <p>genre co-occurrence across 17 queries · 5 layers</p>
+</div>
+<div id="legend"></div>
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
+<div id="filter">
+  <button class="filter-btn active" data-layer="all">All Layers</button>
+  <button class="filter-btn" data-layer="1">Domain</button>
+  <button class="filter-btn" data-layer="2">Category</button>
+  <button class="filter-btn" data-layer="3">Focus</button>
+  <button class="filter-btn" data-layer="4">Method</button>
+</div>
+<div id="info">hover chords to see shared queries &nbsp;·&nbsp; hover arcs to see connections</div>
+
+<script>
+const queries = [
+  { id:"q44",  label:"fffiiinnneee",   g1:"DeFi",            g2:"On-chain Activity",       g3:"DEX Trading",          g4:"PnL Tracking",        g5:"DEX PnL single-wallet" },
+  { id:"q49",  label:"test query",     g1:"Protocol Ops",    g2:"Cost Accounting",         g3:"Multi-env Comparison", g4:"Gas vs Earnings",     g5:"Bot net profit Polygon" },
+  { id:"q55",  label:"2690055",        g1:"Token Economics", g2:"Supply Tracking",         g3:"ERC-20 Token",         g4:"Circulating Supply",  g5:"BPT circ supply" },
+  { id:"q43",  label:"LZ 900K",        g1:"Cross-chain",     g2:"User Profiling",          g3:"Airdrop Farming",      g4:"Activity Scoring",    g5:"LZ leaderboard 35-criteria" },
+  { id:"q60",  label:"insh",           g1:"DeFi",            g2:"Wallet Surveillance",     g3:"DEX Flow Analysis",    g4:"Bot Detection",       g5:"ETH DEX bot detection" },
+  { id:"q63",  label:"Exchange Flows", g1:"Market Structure",g2:"CEX Monitoring",          g3:"Token Deposit/Withdraw",g4:"Net Flow by Exchange",g5:"PENDLE CEX flows" },
+  { id:"q70",  label:"nihonden",       g1:"Cross-chain",     g2:"User Profiling",          g3:"Airdrop Farming",      g4:"Activity Scoring",    g5:"LZ leaderboard fork" },
+  { id:"q76",  label:"2690076",        g1:"Token Economics", g2:"Supply Tracking",         g3:"Governance Token",     g4:"Total Supply",        g5:"BAL total supply" },
+  { id:"q81",  label:"Univ3 LPs",      g1:"DeFi",            g2:"AMM / Liquidity",         g3:"Uniswap V3 Pool",      g4:"Price + TVL",         g5:"V3 pool price WIP" },
+  { id:"q82",  label:"Notional Liq",   g1:"DeFi",            g2:"Lending / Credit",        g3:"Risk Monitoring",      g4:"Liquidation Events",  g5:"Notional v3 liquidations" },
+  { id:"q85",  label:"DAU/PAU",        g1:"Network Metrics", g2:"User Activity",           g3:"Ethereum Mainnet",     g4:"Active Addresses",    g5:"Daily ETH senders/receivers" },
+  { id:"q84",  label:"2690084",        g1:"DeFi",            g2:"Governance",              g3:"Vote-Escrowed Token",  g4:"veBAL Decay Model",   g5:"veBAL power timeseries" },
+  { id:"q88",  label:"CAI Benchmark",  g1:"Token Economics", g2:"Price Benchmarking",      g3:"Multi-token Comparison",g4:"Rolling Returns",    g5:"CAI vs AVAX returns" },
+  { id:"q90",  label:"LZ Stats",       g1:"Cross-chain",     g2:"Single Wallet Lookup",    g3:"LayerZero Protocol",   g4:"Activity Scoring",    g5:"LZ single-wallet summary" },
+  { id:"q93",  label:"LZ Forks x3",   g1:"Cross-chain",     g2:"User Profiling",          g3:"Airdrop Farming",      g4:"Activity Scoring",    g5:"LZ leaderboard ×3 forks" },
+  { id:"q96",  label:"Lido Runway",    g1:"DAO Finance",     g2:"Operational Risk",        g3:"Treasury Management",  g4:"Runway Calculation",  g5:"Lido stablecoin runway" },
+  { id:"q119", label:"2690119",        g1:"DAO Finance",     g2:"Portfolio Tracking",      g3:"Treasury Wallets",     g4:"Balance + USD Value", g5:"Balancer treasury balances" },
+];
+
+const palette = {
+  "DeFi":            "#00ff88",
+  "Cross-chain":     "#ff6b35",
+  "Token Economics": "#a78bfa",
+  "DAO Finance":     "#38bdf8",
+  "Protocol Ops":    "#fbbf24",
+  "Network Metrics": "#fb7185",
+  "Market Structure":"#34d399",
+};
+
+function getDomainColor(q) {
+  return palette[q.g1] || "#334455";
+}
+
+// Legend
+const legendEl = document.getElementById("legend");
+Object.entries(palette).forEach(([k,v]) => {
+  legendEl.innerHTML += `<div class="leg"><div class="leg-dot" style="background:${v};box-shadow:0 0 5px ${v}88"></div><span class="leg-text">${k}</span></div>`;
+});
+
+const W = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.86);
+const R = W / 2;
+const innerR = R * 0.62;
+const outerR = R * 0.72;
+
+const svg = d3.select("body").append("svg")
+  .attr("width", W).attr("height", W)
+  .style("display","block");
+
+const defs = svg.append("defs");
+const glow = defs.append("filter").attr("id","glow");
+glow.append("feGaussianBlur").attr("stdDeviation","2").attr("result","blur");
+const fm = glow.append("feMerge");
+fm.append("feMergeNode").attr("in","blur");
+fm.append("feMergeNode").attr("in","SourceGraphic");
+
+// Scanlines
+const pat = defs.append("pattern").attr("id","scan").attr("width",1).attr("height",3).attr("patternUnits","userSpaceOnUse");
+pat.append("rect").attr("width",1).attr("height",1).attr("fill","rgba(255,255,255,0.008)");
+svg.append("rect").attr("width",W).attr("height",W).attr("fill","url(#scan)").style("pointer-events","none");
+
+const g = svg.append("g").attr("transform",`translate(${R},${R})`);
+const chordG = g.append("g").attr("class","chords");
+const arcG   = g.append("g").attr("class","arcs");
+const labelG = g.append("g").attr("class","labels");
+
+const tooltip = document.getElementById("tooltip");
+
+let currentLayer = "all";
+
+function getGenreKey(q, layer) {
+  if (layer === "all") return [q.g1, q.g2, q.g3, q.g4].join(" › ");
+  if (layer === "1") return q.g1;
+  if (layer === "2") return q.g2;
+  if (layer === "3") return q.g3;
+  if (layer === "4") return q.g4;
+}
+
+function buildMatrix(layer) {
+  // Collect unique genres at this layer
+  const genreSet = new Set();
+  queries.forEach(q => {
+    if (layer === "all") {
+      [q.g1, q.g2, q.g3, q.g4].forEach(g => genreSet.add(g));
+    } else {
+      genreSet.add(getGenreKey(q, layer));
+    }
+  });
+  const genres = [...genreSet];
+  const n = genres.length;
+  const idx = Object.fromEntries(genres.map((g,i) => [g, i]));
+
+  // Matrix: genre[i] co-occurs with genre[j] N times across queries
+  const matrix = Array.from({length:n}, () => new Array(n).fill(0));
+  const genreQueries = Object.fromEntries(genres.map(g => [g, []]));
+
+  queries.forEach(q => {
+    let gs;
+    if (layer === "all") {
+      gs = [q.g1, q.g2, q.g3, q.g4];
+    } else {
+      gs = [getGenreKey(q, layer)];
+    }
+    gs.forEach(gi => {
+      gs.forEach(gj => {
+        if (gi !== gj) matrix[idx[gi]][idx[gj]]++;
+      });
+      genreQueries[gi].push(q);
+    });
+    // self-link for arc sizing
+    gs.forEach(gi => {
+      matrix[idx[gi]][idx[gi]] += 1;
+    });
+  });
+
+  return { matrix, genres, genreQueries, idx };
+}
+
+function getDomainForGenre(genre) {
+  for (const q of queries) {
+    if ([q.g1,q.g2,q.g3,q.g4].includes(genre)) return q.g1;
+  }
+  return null;
+}
+
+function getColor(genre) {
+  const domain = getDomainForGenre(genre);
+  return palette[domain] || "#334455";
+}
+
+function draw(layer) {
+  chordG.selectAll("*").remove();
+  arcG.selectAll("*").remove();
+  labelG.selectAll("*").remove();
+
+  const { matrix, genres, genreQueries } = buildMatrix(layer);
+  const n = genres.length;
+
+  const chord = d3.chord()
+    .padAngle(0.04)
+    .sortSubgroups(d3.descending)
+    .sortChords(d3.descending);
+
+  const chords = chord(matrix);
+
+  const arcGen = d3.arc().innerRadius(innerR).outerRadius(outerR);
+
+  // Draw chords
+  const ribbonGen = d3.ribbon().radius(innerR - 2);
+
+  const chordPaths = chordG.selectAll("path")
+    .data(chords)
+    .join("path")
+    .attr("d", ribbonGen)
+    .attr("fill", d => {
+      const col = getColor(genres[d.source.index]);
+      return col + "22";
+    })
+    .attr("stroke", d => getColor(genres[d.source.index]) + "44")
+    .attr("stroke-width", 0.5)
+    .attr("opacity", 0.6)
+    .on("mouseover", function(event, d) {
+      const g1 = genres[d.source.index];
+      const g2 = genres[d.target.index];
+      if (g1 === g2) return;
+
+      d3.select(this).attr("opacity",1).attr("fill", getColor(g1) + "55");
+
+      // Find shared queries
+      const shared = queries.filter(q => {
+        const qs = layer === "all" ? [q.g1,q.g2,q.g3,q.g4] : [getGenreKey(q, layer)];
+        return qs.includes(g1) && qs.includes(g2);
+      });
+
+      tooltip.style.display = "block";
+      document.getElementById("tt-title").textContent = `${g1} ↔ ${g2}`;
+      document.getElementById("tt-body").innerHTML =
+        `<div style="color:#2a3f55;margin-bottom:4px">${shared.length} shared quer${shared.length===1?"y":"ies"}</div>` +
+        shared.map(q => `<div style="color:${getDomainColor(q)}">▸ ${q.label}</div>`).join("");
+    })
+    .on("mousemove", function(event) {
+      tooltip.style.left = (event.clientX + 14) + "px";
+      tooltip.style.top  = (event.clientY - 10) + "px";
+    })
+    .on("mouseout", function() {
+      d3.select(this).attr("opacity",0.6).attr("fill", d => getColor(genres[d.source.index]) + "22");
+      tooltip.style.display = "none";
+    });
+
+  // Draw arcs
+  const group = arcG.selectAll("g")
+    .data(chords.groups)
+    .join("g");
+
+  group.append("path")
+    .attr("d", arcGen)
+    .attr("fill", d => getColor(genres[d.index]) + "33")
+    .attr("stroke", d => getColor(genres[d.index]) + "88")
+    .attr("stroke-width", 1)
+    .style("filter","url(#glow)")
+    .on("mouseover", function(event, d) {
+      const genre = genres[d.index];
+      const col = getColor(genre);
+
+      // Highlight connected chords
+      chordPaths
+        .attr("opacity", c => c.source.index === d.index || c.target.index === d.index ? 1 : 0.05)
+        .attr("fill", c => {
+          const base = getColor(genres[c.source.index]);
+          return c.source.index === d.index || c.target.index === d.index ? base + "66" : base + "08";
+        });
+
+      const qs = genreQueries[genre] || [];
+      tooltip.style.display = "block";
+      document.getElementById("tt-title").textContent = genre;
+      document.getElementById("tt-body").innerHTML =
+        `<div style="color:#2a3f55;margin-bottom:4px">${qs.length} quer${qs.length===1?"y":"ies"}</div>` +
+        qs.map(q => `<div style="color:${getDomainColor(q)}">▸ ${q.label}</div>`).join("");
+    })
+    .on("mousemove", function(event) {
+      tooltip.style.left = (event.clientX + 14) + "px";
+      tooltip.style.top  = (event.clientY - 10) + "px";
+    })
+    .on("mouseout", function() {
+      chordPaths.attr("opacity",0.6).attr("fill", d => getColor(genres[d.source.index]) + "22");
+      tooltip.style.display = "none";
+    });
+
+  // Tick marks
+  group.append("g")
+    .selectAll("line")
+    .data(d => {
+      const step = (d.endAngle - d.startAngle) / 3;
+      return d3.range(4).map(i => ({ angle: d.startAngle + i * step }));
+    })
+    .join("line")
+    .attr("x1", d => Math.sin(d.angle) * (outerR + 2))
+    .attr("y1", d => -Math.cos(d.angle) * (outerR + 2))
+    .attr("x2", d => Math.sin(d.angle) * (outerR + 5))
+    .attr("y2", d => -Math.cos(d.angle) * (outerR + 5))
+    .attr("stroke", "#1a2d3d")
+    .attr("stroke-width", 1);
+
+  // Labels
+  labelG.selectAll("text")
+    .data(chords.groups)
+    .join("text")
+    .attr("transform", d => {
+      const angle = (d.startAngle + d.endAngle) / 2;
+      const r = outerR + 14;
+      const x = Math.sin(angle) * r;
+      const y = -Math.cos(angle) * r;
+      const rot = angle * 180 / Math.PI - 90;
+      const flip = rot > 90 && rot < 270;
+      return `translate(${x},${y}) rotate(${flip ? rot + 180 : rot})`;
+    })
+    .attr("text-anchor", d => {
+      const angle = (d.startAngle + d.endAngle) / 2;
+      const rot = angle * 180 / Math.PI - 90;
+      return (rot > 90 && rot < 270) ? "end" : "start";
+    })
+    .attr("dominant-baseline", "middle")
+    .attr("font-size", d => {
+      const span = d.endAngle - d.startAngle;
+      return Math.max(7, Math.min(10, span * 18)) + "px";
+    })
+    .attr("font-family", "monospace")
+    .attr("fill", d => getColor(genres[d.index]) + "cc")
+    .attr("font-weight", "600")
+    .text(d => {
+      const span = d.endAngle - d.startAngle;
+      const str = genres[d.index];
+      const maxLen = Math.floor(span * 55);
+      return str.length > maxLen ? str.slice(0, maxLen - 1) + "…" : str;
+    });
+
+  // Center ring label
+  g.selectAll(".center-ring").remove();
+  g.append("circle").attr("class","center-ring")
+    .attr("r", innerR - 10)
+    .attr("fill","#060a0f")
+    .attr("stroke","#0d1520")
+    .attr("stroke-width",1)
+    .style("pointer-events","none");
+
+  g.selectAll(".center-text").remove();
+  const layerNames = { all:"All Genres", "1":"Domain Layer", "2":"Category Layer", "3":"Focus Layer", "4":"Method Layer" };
+  g.append("text").attr("class","center-text")
+    .attr("text-anchor","middle").attr("dy","-0.6em")
+    .attr("fill","#1e3040").attr("font-size","9px").attr("font-family","monospace")
+    .text(layerNames[layer])
+    .style("pointer-events","none");
+
+  g.append("text").attr("class","center-text")
+    .attr("text-anchor","middle").attr("dy","0.8em")
+    .attr("fill","#1a2d3d").attr("font-size","8px").attr("font-family","monospace")
+    .text(`${n} nodes · ${chords.length} chords`)
+    .style("pointer-events","none");
+}
+
+// Filter buttons
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    currentLayer = this.dataset.layer;
+    draw(currentLayer);
+  });
+});
+
+draw("all");
+</script>
+</body>
+</html>
