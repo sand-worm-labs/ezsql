@@ -13,7 +13,7 @@ import re
 import httpx
 from io import StringIO
 from tqdm import tqdm
-from sql_narrator_ollama import SQLNarrator, OllamaConfig, SYSTEM_PROMPT
+from test_scripts.sql_narrator_ollama import SQLNarrator, OllamaConfig, SYSTEM_PROMPT
 
 
 # ========================

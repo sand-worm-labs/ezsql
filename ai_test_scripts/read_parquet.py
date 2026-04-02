@@ -3,7 +3,7 @@ import os
 import json
 from tqdm import tqdm
 from threading import Lock
-from query_to_text import get_full_narrative 
+from test_scripts.query_to_text import get_full_narrative 
 
 # 1. Synchronization: Create a lock for thread-safe file writing
 file_lock = Lock()

@@ -14,7 +14,7 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 
-from sql_narrator_ollama import SQLNarrator, OllamaConfig
+from test_scripts.sql_narrator_ollama import SQLNarrator, OllamaConfig
 
 
 # ========================
