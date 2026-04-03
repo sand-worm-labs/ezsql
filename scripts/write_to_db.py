@@ -23,7 +23,6 @@ def load_parquets_to_postgres():
 
     conn = psycopg2.connect(database_url)
     cur  = conn.cursor()
-    first = True
     total = 0
 
     for file in files:
@@ -31,12 +30,6 @@ def load_parquets_to_postgres():
         df = pd.read_parquet(file)
         df = df.astype(str).replace("None", "").replace("nan", "")
         df = df.apply(lambda col: col.str.replace("\t", " ", regex=False))
-
-        if first:
-            cols = ", ".join(f'"{c}" TEXT' for c in df.columns)
-            cur.execute(f'DROP TABLE IF EXISTS "{table_name}";')
-            cur.execute(f'CREATE TABLE "{table_name}" ({cols});')
-            first = False
 
         buf = StringIO()
         df.to_csv(buf, sep="\t", index=False, header=True)
