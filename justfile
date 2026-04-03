@@ -6,7 +6,7 @@ install:
 	poetry install --no-root
 
 migrate:
-	cd db && PYTHONPATH=.. poetry run python ./run.py up
+	PYTHONPATH=. poetry run python db/run.py up
 
 setup: db-down db-up migrate write clean 
 
@@ -18,7 +18,7 @@ db-down:
 	docker compose down
 
 clean:
-	poetry run python scripts/clean_data.py
+	PYTHONPATH=. poetry run python scripts/clean_data.py
 
 write:
-	poetry run python scripts/write_to_db.py
+	PYTHONPATH=. poetry run python scripts/write_to_db.py

@@ -1,16 +1,15 @@
 # scripts/load.py
 import os
 import sys
-import psycopg2
 import pandas as pd
 from io import StringIO
 from pathlib import Path
 from dotenv import load_dotenv
+from db.connection import get_connection
 
 load_dotenv()
 
 def load_parquets_to_postgres():
-    database_url = os.getenv("DATABASE_URL")
     parquet_path  = os.getenv("PARQUET_PATH", "./dataset")
     table_name    = os.getenv("TABLE_NAME", "QUERIES")
 
@@ -21,7 +20,7 @@ def load_parquets_to_postgres():
         print("No parquet files found.")
         sys.exit(1)
 
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     cur  = conn.cursor()
     total = 0
 

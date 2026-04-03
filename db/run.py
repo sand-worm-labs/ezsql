@@ -5,6 +5,7 @@ MIGRATIONS = [
     "migrations.001_create_tables",
     "migrations.002_add_pgvector",
     "migrations.003_seed_domains",
+    "migrations.004_create_queries_table",
 ]
 
 def run_up():

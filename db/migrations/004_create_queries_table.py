@@ -11,7 +11,7 @@ def _table_name():
 
 
 def _columns_from_parquet():
-    parquet_path = os.getenv("PARQUET_PATH", "./dataset")
+    parquet_path = os.getenv("PARQUET_PATH", "../../dataset")
     path = Path(parquet_path)
     files = sorted(path.glob("*.parquet")) if path.is_dir() else [path]
     if not files:
@@ -30,6 +30,7 @@ def up():
         with conn.cursor() as cur:
             cur.execute(f'DROP TABLE IF EXISTS "{table}";')
             cur.execute(f'CREATE TABLE "{table}" ({cols_ddl});')
+            cur.execute(f'ALTER DATABASE queries REFRESH COLLATION VERSION;')
             conn.commit()
     finally:
         conn.close()

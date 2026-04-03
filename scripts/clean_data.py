@@ -1,6 +1,6 @@
-import os
-import psycopg2
 from dotenv import load_dotenv
+
+from db.connection import get_connection
 
 load_dotenv()
 
@@ -9,7 +9,7 @@ def count(cur) -> int:
     return cur.fetchone()[0]
 
 def clean():
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    conn = get_connection()
     cur  = conn.cursor()
 
     total_before = count(cur)
