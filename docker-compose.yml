@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sandworm
+      POSTGRES_PASSWORD: sandworm
+      POSTGRES_DB: queries
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  loader:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://sandworm:sandworm@postgres:5432/queries
+      PARQUET_PATH: /data
+      TABLE_NAME: QUERIES
+    volumes:
+      - ./dataset:/data
+    restart: "no"
+
+volumes:
+  pgdata:
