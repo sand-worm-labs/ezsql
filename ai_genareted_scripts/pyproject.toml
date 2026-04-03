@@ -1,5 +1,5 @@
 [project]
-name = "ezsql"
+name = "ai_generated_scripts"
 version = "0.1.0"
 description = "Deterministic SQL-to-Intent translation pipeline"
 authors = [
