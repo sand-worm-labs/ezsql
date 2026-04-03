@@ -1,4 +1,3 @@
-# scripts/clean_db.py
 import os
 import psycopg2
 from dotenv import load_dotenv
@@ -46,7 +45,6 @@ def clean():
             DROP INDEX IF EXISTS idx_queries_sql_hash;
             """
         ),
-        # ─── CLEAN ───
         (
             "Drop null/empty/short SQL",
             """
