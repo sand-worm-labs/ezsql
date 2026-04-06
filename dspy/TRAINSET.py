@@ -1,9 +1,9 @@
-import dspy_data
+import dspy
 import json
 
 TRAINSET = [
     # ── 1. Volume + traders trended ──────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', block_time) AS day,
        SUM(amount_usd) AS volume,
@@ -30,7 +30,7 @@ GROUP BY 1 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 2. Top trading pairs ─────────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT token_pair, SUM(amount_usd) AS volume, COUNT(*) AS trades
 FROM dex.trades
@@ -57,7 +57,7 @@ LIMIT {{top_n}}
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 3. Token holder count ────────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT COUNT(DISTINCT address) AS holders
 FROM (
@@ -83,7 +83,7 @@ FROM (
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 4. Contract label resolution ─────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT address, name, namespace
 FROM contracts
@@ -106,7 +106,7 @@ WHERE address IN ({{addresses}})
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 5. Protocol TVL by market ────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT reserve, SUM(supply * price) AS tvl
 FROM lending_protocol.balances b
@@ -130,7 +130,7 @@ GROUP BY 1 ORDER BY 2 DESC
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 6. Revenue with moving average ───────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', block_time) AS day,
        SUM(fee) AS revenue,
@@ -157,7 +157,7 @@ GROUP BY 1 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 7. Wash trade detection ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT tx_hash, buyer, seller, price, block_time
 FROM nft.trades
@@ -180,7 +180,7 @@ WHERE nft_contract_address = {{contract_address}}
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 8. Active users over time ────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('month', block_time) AS period,
        blockchain,
@@ -206,7 +206,7 @@ GROUP BY 1, 2 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 9. Pool inflows trended ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', evt_block_time) AS day,
        SUM(amount0 + amount1) AS net_inflow
@@ -233,7 +233,7 @@ GROUP BY 1 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 10. Current token price ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT symbol, price, decimals
 FROM prices.usd_latest
@@ -258,7 +258,7 @@ LIMIT 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 11. Wallet transactions ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT hash, block_time, "to", value, gas_used
 FROM transactions
@@ -284,7 +284,7 @@ LIMIT {{limit}}
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 12. Bridge volume by route ───────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT source_chain, dest_chain,
        SUM(amount) AS volume, COUNT(*) AS transfers
@@ -310,7 +310,7 @@ GROUP BY 1, 2 ORDER BY 3 DESC
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 13. Trader segmentation ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 WITH daily AS (
     SELECT taker, date_trunc('day', block_time) AS day, SUM(amount_usd) AS vol
@@ -346,7 +346,7 @@ FROM daily GROUP BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 14. Floor price trended ──────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', block_time) AS day,
        MIN(price) AS floor,
@@ -372,7 +372,7 @@ GROUP BY 1 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 15. Program activity leaderboard ─────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT program_id, SUM(compute_units) AS cu, COUNT(*) AS calls
 FROM instruction_calls
@@ -398,7 +398,7 @@ LIMIT {{top_n}}
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 16. NUPL ratio trended ───────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 WITH prices AS (
     SELECT date_trunc('hour', minute) AS t, AVG(price) AS price
@@ -426,7 +426,7 @@ FROM prices ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 17. Vault balances grouped ───────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT vault_address, blockchain, SUM(balance) AS total
 FROM protocol.vault_balances
@@ -448,7 +448,7 @@ GROUP BY 1, 2
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 18. Unique users trended ─────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', block_time) AS day,
        COUNT(DISTINCT "from") AS users
@@ -475,7 +475,7 @@ GROUP BY 1 ORDER BY 1
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 19. Governance proposals ─────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT proposal_id, title, proposer, for_votes, against_votes, status
 FROM governance.proposals
@@ -500,7 +500,7 @@ LIMIT {{limit}}
     ).with_inputs("sql", "label", "candidate_tools"),
 
     # ── 20. Wallet token flow ────────────────────────────────────────────────
-    dspy_data.Example(
+    dspy.Example(
         sql="""
 SELECT date_trunc('day', evt_block_time) AS day,
        SUM(CASE WHEN "to" = {{wallet}} THEN value ELSE 0 END) AS inflow,

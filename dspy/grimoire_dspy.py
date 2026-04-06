@@ -2,11 +2,6 @@ import json
 import os
 import dspy
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
 VALID_SHAPES = {
     "Count over Time",
     "Multi Metric Trend",
@@ -170,7 +165,7 @@ def train():
         max_tokens=2048,
     )
 
-    dspy.settings.configure(lm=lm)
+    dspy.configure(lm=lm)
 
     classifier = GrimoireClassifier()
 

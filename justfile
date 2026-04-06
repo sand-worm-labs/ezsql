@@ -25,3 +25,6 @@ extract limit="1000000":
 
 write:
 	PYTHONPATH=. poetry run python scripts/write_to_db.py
+
+popular-tables:
+	PYTHONPATH=. poetry run python scripts/popular_tables.py

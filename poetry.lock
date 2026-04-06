@@ -249,6 +249,18 @@ files = [
 anyio = ">=3.4.0,<5.0"
 
 [[package]]
+name = "atpublic"
+version = "7.0.0"
+description = "Keep all y'all's __all__'s in sync"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "atpublic-7.0.0-py3-none-any.whl", hash = "sha256:6702bd9e7245eb4e8220a3e222afcef7f87412154732271ee7deee4433b72b4b"},
+    {file = "atpublic-7.0.0.tar.gz", hash = "sha256:466ef10d0c8bbd14fd02a5fbd5a8b6af6a846373d91106d3a07c16d72d96b63e"},
+]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 description = "Classes Without Boilerplate"
@@ -1044,6 +1056,62 @@ quality = ["libcst (>=1.4.0)", "mypy (==1.15.0)", "ruff (>=0.9.0)", "ty"]
 testing = ["Jinja2", "Pillow", "authlib (>=1.3.2)", "duckdb", "fastapi", "fastapi", "httpx", "itsdangerous", "jedi", "numpy", "pytest (>=8.4.2)", "pytest-asyncio", "pytest-cov", "pytest-env", "pytest-mock", "pytest-rerunfailures (<16.0)", "pytest-vcr", "pytest-xdist", "soundfile", "urllib3 (<2.0)"]
 torch = ["safetensors[torch]", "torch"]
 typing = ["types-PyYAML", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3", "typing-extensions (>=4.8.0)"]
+
+[[package]]
+name = "ibis-framework"
+version = "12.0.0"
+description = "The portable Python dataframe library"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "ibis_framework-12.0.0-py3-none-any.whl", hash = "sha256:0bbd790f268da9cb87926d5eaad2b827a573927113c4ed3be5095efa89b9e512"},
+    {file = "ibis_framework-12.0.0.tar.gz", hash = "sha256:238624f2c14fdab8382ca2f4f667c3cdb81e29844cd5f8db8a325d0743767c61"},
+]
+
+[package.dependencies]
+atpublic = ">=2.3"
+numpy = {version = ">=1.23.2,<3", optional = true, markers = "extra == \"postgres\""}
+pandas = {version = ">=1.5.3,<4", optional = true, markers = "extra == \"postgres\""}
+parsy = ">=2"
+psycopg = {version = ">=3.2.0", optional = true, markers = "extra == \"postgres\""}
+pyarrow = {version = ">=10.0.1", optional = true, markers = "extra == \"postgres\""}
+pyarrow-hotfix = {version = ">=0.4", optional = true, markers = "extra == \"postgres\""}
+python-dateutil = ">=2.8.2"
+rich = {version = ">=12.4.4", optional = true, markers = "extra == \"postgres\""}
+sqlglot = ">=23.4,<26.32.0 || >26.32.0"
+toolz = ">=0.11"
+typing-extensions = ">=4.3.0"
+tzdata = ">=2022.7"
+
+[package.extras]
+athena = ["fsspec[s3]", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pyathena[arrow,pandas] (>=3.11.0)", "rich (>=12.4.4)"]
+bigquery = ["db-dtypes (>=0.3)", "google-cloud-bigquery (>=3)", "google-cloud-bigquery-storage (>=2)", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pandas-gbq (>=0.26.1)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pydata-google-auth (>=1.4.0)", "rich (>=12.4.4)"]
+clickhouse = ["clickhouse-connect[arrow,numpy,pandas] (>=0.5.23)", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+databricks = ["databricks-sql-connector (>=4)", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+datafusion = ["datafusion (>=0.6)", "numpy (>=1.23.2,<3)", "packaging (>=21.3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+decompiler = ["black (>=22.1.0)"]
+deltalake = ["deltalake (>=0.9.0)"]
+druid = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pydruid (>=0.6.7)", "rich (>=12.4.4)"]
+duckdb = ["duckdb (>=0.10.3,!=1.3.0)", "numpy (>=1.23.2,<3)", "packaging (>=21.3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+examples = ["pins[gcs] (>=0.8.3)"]
+exasol = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pyexasol (>=0.25.2)", "rich (>=12.4.4)"]
+flink = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+geospatial = ["geoarrow-types (>=0.2)", "geopandas (>=0.6)", "pyproj (>=3.3.0)", "shapely (>=2)"]
+impala = ["impyla (>=0.17)", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+materialize = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "psycopg (>=3.2.0)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+mssql = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pyodbc (>=4.0.39)", "rich (>=12.4.4)"]
+mysql = ["mysqlclient (>=2.2.4)", "numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+oracle = ["numpy (>=1.23.2,<3)", "oracledb (>=1.3.1)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+polars = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "polars (>=1)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+postgres = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "psycopg (>=3.2.0)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+pyspark = ["numpy (>=1.23.2,<3)", "packaging (>=21.3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "pyspark (>=3.5,<4.1)", "rich (>=12.4.4)"]
+risingwave = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "psycopg2 (>=2.8.4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)"]
+singlestoredb = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "parsimonious (>=0.11.0)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)", "singlestoredb (>=1.0)"]
+snowflake = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)", "snowflake-connector-python (>=3.0.2,!=3.3.0b1)"]
+sqlite = ["numpy (>=1.23.2,<3)", "packaging (>=21.3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "regex (>=2021.7.6)", "rich (>=12.4.4)"]
+trino = ["numpy (>=1.23.2,<3)", "pandas (>=1.5.3,<4)", "pyarrow (>=10.0.1)", "pyarrow-hotfix (>=0.4)", "rich (>=12.4.4)", "trino (>=0.321)"]
+visualization = ["graphviz (>=0.16)"]
 
 [[package]]
 name = "idna"
@@ -2217,6 +2285,18 @@ timezone = ["pytz (>=2024.2)"]
 xml = ["lxml (>=5.3.0)"]
 
 [[package]]
+name = "parsy"
+version = "2.2"
+description = "Easy-to-use parser combinators, for parsing in pure Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "parsy-2.2-py3-none-any.whl", hash = "sha256:5e981613d9d2d8b68012d1dd0afe928967bea2e4eefdb76c2f545af0dd02a9e7"},
+    {file = "parsy-2.2.tar.gz", hash = "sha256:e943147644a8cf0d82d1bcb5c5867dd517495254cea3e3eb058b1e421cb7561f"},
+]
+
+[[package]]
 name = "propcache"
 version = "0.4.1"
 description = "Accelerated property cache"
@@ -2347,6 +2427,30 @@ files = [
     {file = "propcache-0.4.1-py3-none-any.whl", hash = "sha256:af2a6052aeb6cf17d3e46ee169099044fd8224cbaf75c76a2ef596e8163e2237"},
     {file = "propcache-0.4.1.tar.gz", hash = "sha256:f48107a8c637e80362555f37ecf49abe20370e557cc4ab374f04ec4423c97c3d"},
 ]
+
+[[package]]
+name = "psycopg"
+version = "3.3.3"
+description = "PostgreSQL database adapter for Python"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "psycopg-3.3.3-py3-none-any.whl", hash = "sha256:f96525a72bcfade6584ab17e89de415ff360748c766f0106959144dcbb38c698"},
+    {file = "psycopg-3.3.3.tar.gz", hash = "sha256:5e9a47458b3c1583326513b2556a2a9473a1001a56c9efe9e587245b43148dd9"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.6", markers = "python_version < \"3.13\""}
+tzdata = {version = "*", markers = "sys_platform == \"win32\""}
+
+[package.extras]
+binary = ["psycopg-binary (==3.3.3) ; implementation_name != \"pypy\""]
+c = ["psycopg-c (==3.3.3) ; implementation_name != \"pypy\""]
+dev = ["ast-comments (>=1.1.2)", "black (>=26.1.0)", "codespell (>=2.2)", "cython-lint (>=0.16)", "dnspython (>=2.1)", "flake8 (>=4.0)", "isort-psycopg", "isort[colors] (>=6.0)", "mypy (>=1.19.0)", "pre-commit (>=4.0.1)", "types-setuptools (>=57.4)", "types-shapely (>=2.0)", "wheel (>=0.37)"]
+docs = ["Sphinx (>=5.0)", "furo (==2022.6.21)", "sphinx-autobuild (>=2021.3.14)", "sphinx-autodoc-typehints (>=1.12)"]
+pool = ["psycopg-pool"]
+test = ["anyio (>=4.0)", "mypy (>=1.19.0) ; implementation_name != \"pypy\"", "pproxy (>=2.7)", "pytest (>=6.2.5)", "pytest-cov (>=3.0)", "pytest-randomly (>=3.5)"]
 
 [[package]]
 name = "psycopg2-binary"
@@ -2483,6 +2587,18 @@ files = [
     {file = "pyarrow-23.0.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:a09f3876e87f48bc2f13583ab551f0379e5dfb83210391e68ace404181a20690"},
     {file = "pyarrow-23.0.1-cp314-cp314t-win_amd64.whl", hash = "sha256:527e8d899f14bd15b740cd5a54ad56b7f98044955373a17179d5956ddb93d9ce"},
     {file = "pyarrow-23.0.1.tar.gz", hash = "sha256:b8c5873e33440b2bc2f4a79d2b47017a89c5a24116c055625e6f2ee50523f019"},
+]
+
+[[package]]
+name = "pyarrow-hotfix"
+version = "0.7"
+description = ""
+optional = false
+python-versions = ">=3.5"
+groups = ["main"]
+files = [
+    {file = "pyarrow_hotfix-0.7-py3-none-any.whl", hash = "sha256:3236f3b5f1260f0e2ac070a55c1a7b339c4bb7267839bd2015e283234e758100"},
+    {file = "pyarrow_hotfix-0.7.tar.gz", hash = "sha256:59399cd58bdd978b2e42816a4183a55c6472d4e33d183351b6069f11ed42661d"},
 ]
 
 [[package]]
@@ -3230,6 +3346,23 @@ pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3_binary"]
 
 [[package]]
+name = "sqlglot"
+version = "30.2.1"
+description = "An easily customizable SQL parser and transpiler"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "sqlglot-30.2.1-py3-none-any.whl", hash = "sha256:f23d9ee9427ef9d20df15f9b0ffa57d9eb45e52b012219a349d1e6b50ed926d1"},
+    {file = "sqlglot-30.2.1.tar.gz", hash = "sha256:ef4a67cc6f66a8043085eb8ea95fa9541c1625dffa9145ad4e9815a7ba60a199"},
+]
+
+[package.extras]
+c = ["sqlglotc (==30.2.1)"]
+dev = ["duckdb (>=0.6)", "pandas", "pandas-stubs", "pdoc", "pre-commit", "pyperf", "python-dateutil", "pytz", "ruff (==0.15.6)", "setuptools_scm", "sqlglot-mypy (>=1.19.1.post1)", "types-python-dateutil", "types-pytz", "typing_extensions"]
+rs = ["sqlglotc (==30.2.1)", "sqlglotrs (==0.13.0)"]
+
+[[package]]
 name = "sqlmodel"
 version = "0.0.38"
 description = "SQLModel, SQL databases in Python, designed for simplicity, compatibility, and robustness."
@@ -3379,6 +3512,18 @@ docs = ["setuptools-rust", "sphinx", "sphinx-rtd-theme"]
 testing = ["datasets", "numpy", "pytest", "pytest-asyncio", "requests", "ruff", "ty"]
 
 [[package]]
+name = "toolz"
+version = "1.1.0"
+description = "List processing tools and functional utilities"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "toolz-1.1.0-py3-none-any.whl", hash = "sha256:15ccc861ac51c53696de0a5d6d4607f99c210739caf987b5d2054f3efed429d8"},
+    {file = "toolz-1.1.0.tar.gz", hash = "sha256:27a5c770d068c110d9ed9323f24f1543e83b2f300a687b7891c1a6d56b697b5b"},
+]
+
+[[package]]
 name = "tqdm"
 version = "4.67.3"
 description = "Fast, Extensible Progress Meter"
@@ -3452,7 +3597,6 @@ description = "Provider of IANA time zone data"
 optional = false
 python-versions = ">=2"
 groups = ["main"]
-markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\""
 files = [
     {file = "tzdata-2026.1-py2.py3-none-any.whl", hash = "sha256:4b1d2be7ac37ceafd7327b961aa3a54e467efbdb563a23655fbfe0d39cfc42a9"},
     {file = "tzdata-2026.1.tar.gz", hash = "sha256:67658a1903c75917309e753fdc349ac0efd8c27db7a0cb406a25be4840f87f98"},
@@ -3936,4 +4080,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "6e424f44697c8eca1220b9e2ab85e7d223100a007c82f5d193eb0db9ba9c90cd"
+content-hash = "0b6b6a24be998e21f76e899fadcece72c04fbe3f65bbb27295321b22773fd969"
