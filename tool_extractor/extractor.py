@@ -1,3 +1,4 @@
+import os
 from typing import TypedDict, List
 import json
 from langgraph.graph import StateGraph, END
@@ -14,18 +15,15 @@ class GrimoireState(TypedDict):
     user_id: str
     raw_title: str
     raw_sql: str
-    # Discovery context (loaded once)
-    domains: List[dict]        # [{name, description}, ...]
-    registry_context: str      # JSON string of existing tools
-    # Pipeline artifacts
-    current_units: List[dict]   # Stage 1 output
-    processed_tools: List[dict] # Stage 2 output
-    # Control
+    domains: List[dict]       
+    registry_context: str     
+    current_units: List[dict]   
+    processed_tools: List[dict] 
     errors: List[str]
     retry_count: int
 
 
-llm = ChatOpenRouter(model="gpt-4-turbo", temperature=0)
+llm = ChatOpenRouter(model="gpt-4-turbo", temperature=0, openrouter_api_key=os.getenv("OPENROUTER_API_KEY"))
 
 
 def initialize_context_node(state: GrimoireState) -> GrimoireState:
