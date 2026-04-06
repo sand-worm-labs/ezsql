@@ -36,166 +36,9 @@ SQL:
 
 
 STAGE2_PROMPT = """
-You are an expert onchain data analyst and taxonomy engineer.
+You are an expert in classifying and standardizing SQL queries for blockchain and DeFi analytics into the Grimoire standard library, a reusable collection of functions for tools like Dune Analytics. Given a Dune SQL query (a decomposed unit focused on metrics like trading volume, token holders, or contract forensics on Ethereum-like chains), a short descriptive label, and a list of candidate tools (top similar functions from the registry as JSON, which may be empty), your task is to:\n\n1. Analyze the query's intent, structure, tables (e.g., dex.trades, erc20.evt_Transfer), aggregations, filters, and groupings to determine its purpose in blockchain analytics.\n2. Check the candidate tools for a close match: if the query's logic, inputs, and output align closely with one, set match to true and tool_id to its ID; otherwise, set match to false and tool_id to null, and generate a new tool entry.\n3. Classify into Grimoire structure:\n   - G1: Choose one namespace from: Protocols, Tokens, Wallets, Chains, Network, DAOs, Forensics, Derivatives.\n   - G2: Select a module from a controlled vocabulary relevant to the domain (e.g., Trading Activity, Holder Metrics).\n   - G3: Create a concise function name (max 4 words) with a structural suffix (e.g., Time Series, Count); avoid specific protocol/chain/token names.\n   - G4: Select return shape from: Count over Time, Multi Metric Trend, Ranked List, Point Value, Grouped Breakdown, Address List, Event Log, Key Value Map, Ratio Trend, Cumulative Sum, Distribution, Comparison.\n   - G5: Write a short docstring (max 10 words) describing the source/query, which may include protocols but focus on the metric.\n   - Description: Provide a generic one-sentence help summary starting with a verb (e.g., \"Retrieves...\"); no specific protocol/chain/token names.\n   - Inputs Json: Output a JSON array of function arguments inferred from query placeholders (e.g., {{protocol}}) or implicit needs (e.g., chain); each object has \"key\" (arg name), \"type\" (e.g., protocol, text, integer, address, chain), \"label\" (human-readable), \"default\" (if applicable, else null), \"required\" (true/false).\n4. Output step-by-step reasoning first, explaining your analysis, match decision, and classifications. Then, provide the outputs in the exact prefixed format, ensuring the SQL adheres to efficient PostgreSQL patterns (under 10 lines with aggregations and time filters).\n\nInputs will be provided as:\nSql: [query]\nLabel: [label]\nCandidate Tools: [JSON array or empty]\n\nRespond only with:\nReasoning: Let's think step by step in order to [your reasoning]\nG 1: [value]\nG 2: [value]\nG 3: [value]\nG 4: [value]\nG 5: [value]\nDescription: [value]\nInputs Json: [JSON string]\nMatch: [true/false]\nTool Id: [ID or null]
 
-You will receive a SQL unit (already decomposed by Stage 1). Classify it into
-the grimoire taxonomy and extract its inputs.
-
-## Taxonomy rules
-
-### g1 — domain
-Must exactly match one domain from the registry:
-{{domains}}
-
-### g2 — category
-Must come from the controlled vocabulary below. If none fit, use the closest.
-
-Controlled g2 vocabulary per domain:
-
-Protocols:     Trading Activity | Pool Analytics | Liquidity Analytics | Fee Analytics |
-               Yield Analytics | Lending Activity | Staking Operations | Launch Analytics |
-               Usage Metrics | Payment Analytics | Vault Analytics | Token Lifecycle |
-               Execution Analytics | Competitive Analysis | User Analytics | Revenue Analytics
-
-Tokens:        Trading Activity | Holder Analytics | Supply Analytics | Price Analytics |
-               Transfer Analytics | Token Discovery | DeFi Usage | Cross-chain Analytics |
-               Social Trading | Opportunity Screening | Tokenomics | Flow Analytics
-
-Wallets:       Trading Performance | Transaction History | Holder Analytics |
-               Trading Intelligence | Trade Attribution | Contract Analytics |
-               Balance Tracking | Contract Metadata | NFT Holdings | Token Deployer Analysis |
-               Protocol User Analysis
-
-Chains:        Activity Metrics | Economic Metrics | DeFi Metrics | Ecosystem Analytics
-
-Network:       Activity Metrics | Fee Metrics
-
-DAOs:          Governance Activity
-
-Forensics:     Fund Flow | Contract Labels | Trace Monitoring | Transaction Inspection |
-               Contract Discovery | Treasury Monitoring | Data Inspection
-
-Derivatives:   Market Participation | Yield Analytics
-
-### g3 — tool identity
-THE most important field. Canonical tool name in the Power Toolbox.
-
-Rules:
-- Max 4 words
-- NEVER contains a protocol name, chain name, or token name
-- Reusable across any protocol, chain, or token
-- Append a structural suffix that encodes output type:
-  - Series     — time series (daily, weekly, hourly trends)
-  - Snapshot   — point-in-time (current state, latest values)
-  - Leaderboard — ranked list (top N by metric)
-  - Tracker    — ongoing state changes, events
-  - Screener   — items matching filter criteria
-  - Lookup     — metadata resolution (address → name)
-  - Feed       — raw event stream (logs, transfers, txs)
-  - Monitor    — threshold-based or anomaly detection
-- Must be reusable across 50+ queries — if too specific, generalize
-
-### g4 — variant
-What is specifically measured within this g3. Max 4 words. No protocol names.
-
-### g5 — provenance
-Concrete description of the source query. May name protocols/chains/tokens.
-Max 10 words. Never shown to users.
-
-## Registry match rules
-
-Check the registry for a matching g3 before creating a new tool.
-
-- Same g3 + compatible inputs  → match: true, set tool_id
-- Same g3 + different inputs   → match: true, set tool_id, note: "extends inputs"
-- No match                     → match: false, tool_id: null
-
-Two g3s are the same if they answer the same question for different protocols
-or chains. When in doubt, merge.
-
-## Input extraction rules
-
-Only extract runtime parameters a user fills in:
-- Onchain identifiers: wallet, contract, token addresses
-- Selectors: token symbols, protocol names, chain names
-- Time bounds: start date, end date, lookback window, granularity
-- Numeric filters: min/max amounts, top N, thresholds
-
-Do NOT extract:
-- SQL table names, schema names, CTE names
-- Protocol-internal constants with no user-facing meaning
-- SQL operators or function names
-
-Dune {{param}} template params are always real inputs.
-
-Hardcoded values → lift as input, set as default. Never leave default: null
-when a hardcoded value exists in the SQL.
-
-No hardcoded value → default: null.
-NEVER use "query-specific" or descriptive text as a default.
-
-Max 4 inputs per tool. Keep the most analytically meaningful ones.
-
-Input schema:
-{
-  "key": "snake_case",
-  "label": "Human readable label",
-  "type": "address|token|protocol|chain|date_range|number|text",
-  "required": true,
-  "default": null
-}
-
-required: true  → no sensible default exists, user must provide
-required: false → default exists, tool runs without user input
-
-## Output format
-
-Return ONLY valid JSON. No markdown, no explanation, no preamble.
-
-{
-  "match": false,
-  "tool_id": null,
-  "note": null,
-  "g1": "Protocols",
-  "g2": "Yield Analytics",
-  "g3": "Rate Time Series",
-  "g4": "Borrow Supply APY",
-  "g5": "Aave V3 Sonic daily supply and borrow APY by asset",
-  "inputs": [
-    {
-      "key": "protocol",
-      "label": "Protocol",
-      "type": "protocol",
-      "required": false,
-      "default": "aave_v3"
-    },
-    {
-      "key": "chain",
-      "label": "Chain",
-      "type": "chain",
-      "required": false,
-      "default": "sonic"
-    },
-    {
-      "key": "token_symbol",
-      "label": "Asset symbol",
-      "type": "token",
-      "required": true,
-      "default": null
-    },
-    {
-      "key": "lookback_days",
-      "label": "Lookback days",
-      "type": "number",
-      "required": false,
-      "default": "365"
-    }
-  ]
-}
-
-## Current grimoire registry
-
-{{registry_json}}
+{{candidate_tools_json}}
 
 ## SQL unit to classify
 
@@ -216,7 +59,7 @@ def build_stage1_prompt(title: str, sql: str) -> str:
 def build_stage2_prompt(
     label: str,
     sql: str,
-    registry_json: str,
+    candidate_tools_json: str,
     domains: list[dict],
 ) -> str:
     domain_list = "\n".join([
@@ -225,6 +68,6 @@ def build_stage2_prompt(
     ])
     return STAGE2_PROMPT \
         .replace("{{domains}}", domain_list) \
-        .replace("{{registry_json}}", registry_json) \
+        .replace("{{candidate_tools_json}}", candidate_tools_json) \
         .replace("{{label}}", label) \
         .replace("{{sql}}", sql)

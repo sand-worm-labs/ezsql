@@ -7,11 +7,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from .prompts import build_stage1_prompt, build_stage2_prompt
 from .registry import get_domains, get_registry_json, find_by_g3, upsert_tool
-# from .embedder import embed_tool_description # Import when ready
-
 
 class GrimoireState(TypedDict):
-    # Input
     user_id: str
     raw_title: str
     raw_sql: str
@@ -23,11 +20,10 @@ class GrimoireState(TypedDict):
     retry_count: int
 
 
-llm = ChatOpenRouter(model="gpt-4-turbo", temperature=0, openrouter_api_key=os.getenv("OPENROUTER_API_KEY"))
+llm = ChatOpenRouter(model="x-ai/grok-4-fast", temperature=0, openrouter_api_key=os.getenv("OPENROUTER_API_KEY"))
 
 
 def initialize_context_node(state: GrimoireState) -> GrimoireState:
-    """Load taxonomy and registry context from Postgres."""
     print("--- [Node: Initialize Context] ---")
     domains = get_domains()            
     registry_json = get_registry_json()
@@ -43,7 +39,6 @@ def initialize_context_node(state: GrimoireState) -> GrimoireState:
 
 
 def stage1_decompose_node(state: GrimoireState) -> GrimoireState:
-    """Decompose raw SQL into logical units."""
     print("--- [Node: Stage 1 - Decompose] ---")
 
     prompt_text = build_stage1_prompt(state['raw_title'], state['raw_sql'])
@@ -54,6 +49,8 @@ def stage1_decompose_node(state: GrimoireState) -> GrimoireState:
     try:
         cleaned = response.content.replace("```json", "").replace("```", "").strip()
         units = json.loads(cleaned).get("units", [])
+        print(f"  → Stage 1 produced {len(units)} unit(s)")
+        print(units)
         return {**state, "current_units": units}
     except json.JSONDecodeError:
         error_msg = f"Stage 1 failed to generate valid JSON: {response.content[:100]}..."
@@ -61,7 +58,6 @@ def stage1_decompose_node(state: GrimoireState) -> GrimoireState:
 
 
 def stage2_classify_node(state: GrimoireState) -> GrimoireState:
-    """Classify each unit into the taxonomy and extract inputs."""
     print(f"--- [Node: Stage 2 - Classify {len(state['current_units'])} units] ---")
 
     classified_tools = []
@@ -71,7 +67,7 @@ def stage2_classify_node(state: GrimoireState) -> GrimoireState:
         prompt_text = build_stage2_prompt(
             label=unit['label'],
             sql=unit['sql'],
-            registry_json=state['registry_context'],
+            candidate_tools_json=state['registry_context'],
             domains=state['domains'],
         )
 
@@ -90,7 +86,6 @@ def stage2_classify_node(state: GrimoireState) -> GrimoireState:
 
 
 def registry_match_node(state: GrimoireState) -> GrimoireState:
-    """Check processed tools against Postgres for idempotency."""
     print("--- [Node: Registry Match] ---")
 
     for tool in state['processed_tools']:
@@ -105,7 +100,6 @@ def registry_match_node(state: GrimoireState) -> GrimoireState:
 
 
 def finalize_tool_node(state: GrimoireState) -> GrimoireState:
-    """Upsert tools into Postgres (new insert or append source query)."""
     print("--- [Node: Finalize & Save] ---")
 
     source_query_id = state['raw_title']
@@ -136,8 +130,6 @@ def should_continue(state: GrimoireState):
     return "continue"
 
 
-# --- GRAPH CONSTRUCTION --------------------------------------------------------
-
 workflow = StateGraph(GrimoireState)
 
 workflow.add_node("initialize", initialize_context_node)
@@ -156,8 +148,6 @@ workflow.add_edge("finalize", END)
 
 grimoire_pipeline = workflow.compile()
 
-
-# --- EXECUTION WRAPPER ---------------------------------------------------------
 
 def run_grimoire_pipeline(user_id: str, title: str, sql: str):
     """Headless execution entry point for the pipeline."""

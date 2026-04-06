@@ -1,4 +1,5 @@
 import argparse
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,17 +25,18 @@ def main():
 
         for i, q in enumerate(queries, 1):
             title = q.name or q.query_id
-            # print(f"[{i}/{len(queries)}] {title}")
-            # try:
-            #     result = run_grimoire_pipeline(
-            #         user_id="extractor",
-            #         title=title,
-            #         sql=q['query_sql'],
-            #     )
-            #     tools = result.get("processed_tools", [])
-            #     print(f"  → {len(tools)} tool(s) extracted")
-            # except Exception as e:
-            #     print(f"  ✗ Error: {e}", file=sys.stderr)
+            print(f"[{i}/{len(queries)}] {title}")
+            try:
+                result = run_grimoire_pipeline(
+                    user_id="extractor",
+                    title=title,
+                    sql=q.query_sql,
+                )
+                tools = result.get("processed_tools", [])
+                print(tools)
+                print(f"  → {len(tools)} tool(s) extracted")
+            except Exception as e:
+                print(f"  ✗ Error: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

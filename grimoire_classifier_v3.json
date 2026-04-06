@@ -1,0 +1,133 @@
+{
+  "classify.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "sql": "\nSELECT date_trunc('day', block_time) AS day,\n       SUM(amount_usd) AS volume,\n       COUNT(DISTINCT taker) AS traders\nFROM dex.trades\nWHERE project = '{{protocol}}'\n  AND block_time >= now() - interval '{{timeframe}}'\nGROUP BY 1 ORDER BY 1\n",
+        "label": "volume and traders over time",
+        "candidate_tools": "[]",
+        "reasoning": "The SQL query aggregates daily trading volume (in USD) and unique trader counts from DEX trades for a specified protocol over a recent timeframe, grouped by day. This fits into Protocols namespace as it analyzes protocol-specific trading metrics over time. No matching candidates, so create a new tool. Return shape is a multi-metric trend (volume and traders) over daily intervals. Inputs derived from placeholders: protocol and timeframe, plus implicit chain.",
+        "g1": "Protocols",
+        "g2": "Trading Activity",
+        "g3": "Volume Traders Time Series",
+        "g4": "Multi Metric Trend",
+        "g5": "DEX daily volume and unique traders by protocol",
+        "description": "Retrieves daily volume and unique trader counts for a DEX protocol over a time period.",
+        "inputs_json": "[{\"key\": \"protocol\", \"type\": \"protocol\", \"label\": \"Protocol\", \"default\": \"uniswap\", \"required\": true}, {\"key\": \"timeframe\", \"type\": \"text\", \"label\": \"Timeframe\", \"default\": \"30 days\", \"required\": false}, {\"key\": \"chain\", \"type\": \"chain\", \"label\": \"Chain\", \"default\": \"ethereum\", \"required\": false}]",
+        "match": false,
+        "tool_id": "null"
+      },
+      {
+        "augmented": true,
+        "sql": "\nSELECT token_pair, SUM(amount_usd) AS volume, COUNT(*) AS trades\nFROM dex.trades\nWHERE project = '{{protocol}}'\n  AND block_time >= now() - interval '{{timeframe}}'\nGROUP BY 1 ORDER BY 2 DESC\nLIMIT {{top_n}}\n",
+        "label": "top pairs by volume",
+        "candidate_tools": "[]",
+        "reasoning": "This SQL query aggregates trading data from dex.trades to find the top token pairs by USD volume for a given protocol within a specified timeframe, also counting the number of trades per pair. It groups by token_pair, sorts descending by volume, and limits to the top N results. This fits under Protocols namespace as it's protocol-specific DEX activity. Module can be Trading Activity, similar to the volume/traders example. Function name: Top Pairs Volume, as it's a ranked output of pairs with metrics. Return shape is Ranked List due to the ordering and limit. Docstring describes the DEX pair volume ranking. Description is a generic summary starting with a verb. Inputs include protocol (required), timeframe (default 30 days), top_n (default 10), and optionally chain. No match in candidates.",
+        "g1": "Protocols",
+        "g2": "Trading Activity",
+        "g3": "Top Pairs Volume",
+        "g4": "Ranked List",
+        "g5": "Top DEX trading pairs by volume and trades in timeframe",
+        "description": "Retrieves top trading pairs ranked by volume with associated trade counts for a protocol.",
+        "inputs_json": "[{\"key\": \"protocol\", \"type\": \"protocol\", \"label\": \"Protocol\", \"default\": null, \"required\": true}, {\"key\": \"timeframe\", \"type\": \"text\", \"label\": \"Timeframe\", \"default\": \"30 days\", \"required\": false}, {\"key\": \"top_n\", \"type\": \"integer\", \"label\": \"Top N\", \"default\": 10, \"required\": false}, {\"key\": \"chain\", \"type\": \"chain\", \"label\": \"Chain\", \"default\": \"ethereum\", \"required\": false}]",
+        "match": false,
+        "tool_id": "null"
+      },
+      {
+        "sql": "\nSELECT address, name, namespace\nFROM contracts\nWHERE address IN ({{addresses}})\n",
+        "label": "resolve contract labels",
+        "candidate_tools": "[]",
+        "g1": "Forensics",
+        "g2": "Contract Labels",
+        "g3": "Contract Label Lookup",
+        "g4": "Key Value Map",
+        "g5": "Contract addresses to human-readable labels",
+        "description": "Resolves contract addresses to their registered names and namespaces.",
+        "inputs_json": "[{\"key\": \"chain\", \"type\": \"chain\", \"label\": \"Chain\", \"default\": \"ethereum\", \"required\": false}, {\"key\": \"addresses\", \"type\": \"text\", \"label\": \"Addresses\", \"default\": null, \"required\": true}]",
+        "match": false,
+        "tool_id": "null"
+      },
+      {
+        "sql": "\nSELECT COUNT(DISTINCT address) AS holders\nFROM (\n    SELECT \"to\" AS address FROM erc20.evt_Transfer\n    WHERE contract_address = {{token_address}}\n    GROUP BY 1 HAVING SUM(value) > 0\n) h\n",
+        "label": "token holder count",
+        "candidate_tools": "[]",
+        "g1": "Tokens",
+        "g2": "Holder Analytics",
+        "g3": "Holder Count Snapshot",
+        "g4": "Point Value",
+        "g5": "ERC20 token holders with positive balance",
+        "description": "Counts distinct addresses holding a positive balance of a token.",
+        "inputs_json": "[{\"key\": \"token_address\", \"type\": \"address\", \"label\": \"Token Address\", \"default\": null, \"required\": true}, {\"key\": \"chain\", \"type\": \"chain\", \"label\": \"Chain\", \"default\": \"ethereum\", \"required\": false}]",
+        "match": false,
+        "tool_id": "null"
+      }
+    ],
+    "signature": {
+      "instructions": "You are an expert in classifying and standardizing SQL queries for blockchain and DeFi analytics into the Grimoire standard library, a reusable collection of functions for tools like Dune Analytics. Given a Dune SQL query (a decomposed unit focused on metrics like trading volume, token holders, or contract forensics on Ethereum-like chains), a short descriptive label, and a list of candidate tools (top similar functions from the registry as JSON, which may be empty), your task is to:\n\n1. Analyze the query's intent, structure, tables (e.g., dex.trades, erc20.evt_Transfer), aggregations, filters, and groupings to determine its purpose in blockchain analytics.\n2. Check the candidate tools for a close match: if the query's logic, inputs, and output align closely with one, set match to true and tool_id to its ID; otherwise, set match to false and tool_id to null, and generate a new tool entry.\n3. Classify into Grimoire structure:\n   - G1: Choose one namespace from: Protocols, Tokens, Wallets, Chains, Network, DAOs, Forensics, Derivatives.\n   - G2: Select a module from a controlled vocabulary relevant to the domain (e.g., Trading Activity, Holder Metrics).\n   - G3: Create a concise function name (max 4 words) with a structural suffix (e.g., Time Series, Count); avoid specific protocol/chain/token names.\n   - G4: Select return shape from: Count over Time, Multi Metric Trend, Ranked List, Point Value, Grouped Breakdown, Address List, Event Log, Key Value Map, Ratio Trend, Cumulative Sum, Distribution, Comparison.\n   - G5: Write a short docstring (max 10 words) describing the source/query, which may include protocols but focus on the metric.\n   - Description: Provide a generic one-sentence help summary starting with a verb (e.g., \"Retrieves...\"); no specific protocol/chain/token names.\n   - Inputs Json: Output a JSON array of function arguments inferred from query placeholders (e.g., {{protocol}}) or implicit needs (e.g., chain); each object has \"key\" (arg name), \"type\" (e.g., protocol, text, integer, address, chain), \"label\" (human-readable), \"default\" (if applicable, else null), \"required\" (true/false).\n4. Output step-by-step reasoning first, explaining your analysis, match decision, and classifications. Then, provide the outputs in the exact prefixed format, ensuring the SQL adheres to efficient PostgreSQL patterns (under 10 lines with aggregations and time filters).\n\nInputs will be provided as:\nSql: [query]\nLabel: [label]\nCandidate Tools: [JSON array or empty]\n\nRespond only with:\nReasoning: Let's think step by step in order to [your reasoning]\nG 1: [value]\nG 2: [value]\nG 3: [value]\nG 4: [value]\nG 5: [value]\nDescription: [value]\nInputs Json: [JSON string]\nMatch: [true/false]\nTool Id: [ID or null]",
+      "fields": [
+        {
+          "prefix": "Sql:",
+          "description": "Decomposed SQL unit"
+        },
+        {
+          "prefix": "Label:",
+          "description": "Short label from Stage 1"
+        },
+        {
+          "prefix": "Candidate Tools:",
+          "description": "Top 10 similar functions from registry as JSON"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "G 1:",
+          "description": "Namespace: Protocols|Tokens|Wallets|Chains|Network|DAOs|Forensics|Derivatives"
+        },
+        {
+          "prefix": "G 2:",
+          "description": "Module from controlled vocabulary"
+        },
+        {
+          "prefix": "G 3:",
+          "description": "Function name, max 4 words, structural suffix, no protocol/chain/token names"
+        },
+        {
+          "prefix": "G 4:",
+          "description": "Return shape: Count over Time|Multi Metric Trend|Ranked List|Point Value|Grouped Breakdown|Address List|Event Log|Key Value Map|Ratio Trend|Cumulative Sum|Distribution|Comparison"
+        },
+        {
+          "prefix": "G 5:",
+          "description": "Docstring: source description, may name protocols, max 10 words"
+        },
+        {
+          "prefix": "Description:",
+          "description": "help() — generic one-sentence summary starting with a verb, no protocol/chain/token names"
+        },
+        {
+          "prefix": "Inputs Json:",
+          "description": "JSON array of function arguments with key/type/label/default/required"
+        },
+        {
+          "prefix": "Match:",
+          "description": "Whether this matches an existing function in candidates"
+        },
+        {
+          "prefix": "Tool Id:",
+          "description": "Matched tool_id or null"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}
