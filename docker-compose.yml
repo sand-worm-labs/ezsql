@@ -11,5 +11,22 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  dbgate:
+    image: dbgate/dbgate
+    restart: unless-stopped
+    ports:
+      - "5433:3000"
+    environment:
+      CONNECTIONS: postgres
+      LABEL_postgres: Sandworm DB
+      SERVER_postgres: postgres
+      PORT_postgres: 5432
+      USER_postgres: sandworm
+      PASSWORD_postgres: sandworm
+      DATABASE_postgres: queries
+      ENGINE_postgres: postgres@dbgate-plugin-postgres
+    depends_on:
+      - postgres
+
 volumes:
   pgdata:

@@ -1,43 +1,12 @@
 import os
 import json
 import re
-import psycopg2
-from psycopg2.extras import RealDictCursor, Json
+from psycopg2.extras import Json
 from math import log
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://daniel:pass@localhost:5432/sandworm_db")
-
-def get_connection():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+from db.connection import get_connection
 
 def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-
-
-
-def seed_domains():
-    domains = [
-        ("protocols",   "Protocols",   "DEX, lending, AMM, staking, governance "),
-        ("tokens",      "Tokens",      "Supply, price, holders, benchmarks "),
-        ("wallets",     "Wallets",     "Address profiling, PnL, fund flows, user behavior"),
-        ("chains",      "Chains",      "Network activity, L2s, bridges, contract monitoring"),
-        ("network",     "Network",     "Chain-level metrics — transaction counts, gas, block data"),
-        ("daos",        "DAOs",        "Governance proposals, treasury, voting"),
-        ("forensics",   "Forensics",   "Fund tracing, cluster analysis, address attribution"),
-        ("derivatives", "Derivatives", "Perps, options, funding rates, CEX vs DEX comparison"),
-    ]
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            for domain_id, name, description in domains:
-                cur.execute("""
-                    INSERT INTO grimoire_domains (domain_id, name, description)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (domain_id) DO NOTHING
-                """, (domain_id, name, description))
-            conn.commit()
-    finally:
-        conn.close()
 
 def get_domains() -> list[dict]:
     conn = get_connection()
@@ -78,12 +47,6 @@ def find_by_g3(g3: str) -> dict | None:
         conn.close()
 
 def upsert_tool(tool_data: dict, source_query_id: str) -> str:
-    """
-    Match on g3 only.
-    If match → append source_query_id to source_queries.
-    If no match → insert new tool.
-    Returns tool_id.
-    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -125,7 +88,6 @@ def upsert_tool(tool_data: dict, source_query_id: str) -> str:
         conn.close()
 
 def increment_usage(tool_id: str):
-    """Called every time an AnalyticsBlock is inserted from this tool."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:

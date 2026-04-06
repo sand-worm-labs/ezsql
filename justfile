@@ -8,10 +8,10 @@ install:
 migrate:
 	PYTHONPATH=. poetry run python db/run.py up
 
-setup: db-down db-up migrate write clean 
+setup: db-down db-up migrate write clean  extract
 
 db-up:
-	docker compose up -d postgres
+	docker compose up -d 
 	until docker compose exec postgres pg_isready -U sandworm -d queries; do sleep 1; done
 
 db-down:
@@ -19,6 +19,9 @@ db-down:
 
 clean:
 	PYTHONPATH=. poetry run python scripts/clean_data.py
+
+extract limit="1000000":
+	PYTHONPATH=. poetry run python scripts/run_extractor.py {{ if limit != "" { "--limit " + limit } else { "" } }}
 
 write:
 	PYTHONPATH=. poetry run python scripts/write_to_db.py

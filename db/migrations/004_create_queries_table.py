@@ -1,14 +1,11 @@
 import os
 from pathlib import Path
-
 import pandas as pd
-
-from db.connection import get_connection
-
+from sqlmodel import text
+from db.connection import get_session
 
 def _table_name():
     return os.getenv("TABLE_NAME", "QUERIES")
-
 
 def _columns_from_parquet():
     parquet_path = os.getenv("PARQUET_PATH", "../../dataset")
@@ -19,31 +16,24 @@ def _columns_from_parquet():
     df = pd.read_parquet(files[0], engine="pyarrow")
     return list(df.columns)
 
-
 def up():
     table = _table_name()
     columns = _columns_from_parquet()
     cols_ddl = ", ".join(f'"{c}" TEXT' for c in columns)
 
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{table}";')
-            cur.execute(f'CREATE TABLE "{table}" ({cols_ddl});')
-            cur.execute(f'ALTER DATABASE queries REFRESH COLLATION VERSION;')
-            conn.commit()
-    finally:
-        conn.close()
-    print(f"004: {table} table created")
-
+    with get_session() as session:
+        session.exec(text(f'DROP TABLE IF EXISTS "{table}";'))
+        session.exec(text(f'CREATE TABLE "{table}" ({cols_ddl});'))
+        try:
+            session.exec(text('ALTER DATABASE queries REFRESH COLLATION VERSION;'))
+        except Exception as e:
+            print(f"Warning: Collation refresh skipped (might not be supported or permitted): {e}")
+        session.commit()
+    print(f"004: {table} table created with {len(columns)} columns")
 
 def down():
     table = _table_name()
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(f'DROP TABLE IF EXISTS "{table}";')
-            conn.commit()
-    finally:
-        conn.close()
+    with get_session() as session:
+        session.exec(text(f'DROP TABLE IF EXISTS "{table}";'))
+        session.commit()
     print(f"004: {table} table dropped")
