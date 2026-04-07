@@ -28,7 +28,7 @@ def main():
             print(f"[{i}/{len(queries)}] {title}")
             try:
                 result = run_grimoire_pipeline(
-                    user_id="extractor",
+                    query_id=q.query_id,
                     title=title,
                     sql=q.query_sql,
                 )

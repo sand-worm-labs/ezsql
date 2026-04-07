@@ -28,3 +28,10 @@ write:
 
 popular-tables:
 	PYTHONPATH=. poetry run python scripts/popular_tables.py
+
+popular-combos:
+	PYTHONPATH=. poetry run python scripts/popular_combos.py
+
+token-count:
+	PYTHONPATH=. poetry run python scripts/token_count.py
+
