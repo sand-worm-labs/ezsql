@@ -35,3 +35,5 @@ popular-combos:
 token-count:
 	PYTHONPATH=. poetry run python scripts/token_count.py
 
+aidelml-visual:
+	PYTHONPATH=. streamlit run aidelml_visual/app.py

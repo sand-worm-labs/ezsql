@@ -9,12 +9,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans, AgglomerativeClustering
 
 # Load data
-train_df = pd.read_csv("./aidelml/input/train.csv")
-test_df = pd.read_parquet("./aidelml/input/test.parquet")
+train_df = pd.read_csv("./aidelml_visual/input/train.csv")
+test_df = pd.read_parquet("./aidelml_visual/input/test.parquet")    
 
 print(f"Train shape: {train_df.shape}")
 print(f"Test shape: {test_df.shape}")
-os.makedirs("./aidelml/working", exist_ok=True)
+os.makedirs("./aidelml_visual/working", exist_ok=True)
 # ============================================================
 # PHASE 1: MINE THE CORPUS — learn what's actually in the data
 # ============================================================
@@ -631,7 +631,7 @@ submission = pd.DataFrame({
     "g5": results["g5"],
 })
 
-submission.to_csv("./aidelml/working/submission.csv", index=False)
+submission.to_csv("./aidelml_visual/working/submission.csv", index=False)
 
 actual_toolbox = len(set(zip(results["g3"], results["g4"])))
 final_eff = train_cov / math.log2(actual_toolbox) if actual_toolbox > 1 else 0
