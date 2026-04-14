@@ -37,3 +37,9 @@ token-count:
 
 aidelml-visual:
 	PYTHONPATH=. streamlit run aidelml_visual/app.py
+
+extract_tables:
+	PYTHONPATH=. poetry run python domains/scripts/extract_source_tables.py --format source_table --unique > processed_sources.csv
+
+extract_tables_domain:
+	PYTHONPATH=. poetry run python table_domain/domains.py 
