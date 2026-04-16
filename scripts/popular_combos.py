@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 from collections import Counter
 from itertools import combinations
 from dotenv import load_dotenv
@@ -42,11 +43,11 @@ def run():
                 triple_counts[triple] += 1
 
     print(f"\n{'='*90}")
-    print(f"TOP 30 TABLE PAIRS")
+    print(f"TOP 1000 TABLE PAIRS")
     print(f"{'='*90}")
     print(f"{'Rank':<6} {'Table A':<40} {'Table B':<40} {'Count':>8}")
     print("-" * 96)
-    for i, ((a, b), count) in enumerate(pair_counts.most_common(30), 1):
+    for i, ((a, b), count) in enumerate(pair_counts.most_common(1000), 1):
         print(f"{i:<6} {a:<40} {b:<40} {count:>8,}")
 
     print(f"\n{'='*90}")
@@ -54,7 +55,7 @@ def run():
     print(f"{'='*90}")
     print(f"{'Rank':<6} {'Tables':<80} {'Count':>8}")
     print("-" * 90)
-    for i, (triple, count) in enumerate(triple_counts.most_common(20), 1):
+    for i, (triple, count) in enumerate(triple_counts.most_common(1000), 1):
         print(f"{i:<6} {' + '.join(triple):<80} {count:>8,}")
 
 

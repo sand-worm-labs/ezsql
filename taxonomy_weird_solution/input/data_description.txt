@@ -1,0 +1,174 @@
+query_id: Unique integer identifier for each Dune query.
+
+name: Original human-written query title from Dune. NOISY — often contains
+      protocol names, token names, typos, emoji, abbreviations.
+      Treat as weak signal.
+
+description: Author-provided description. Frequently empty string.
+
+tags: JSON array of user-applied tags. Uncontrolled vocabulary.
+
+query_engine: Execution engine used on Dune.
+       v1 Ethereum [deprecated]    Legacy Dune v1 engine
+       v2 Dune SQL                 Current Dune SQL engine
+       v2 Spark SQL                Spark SQL engine variant
+
+query_sql: Full SQL query text. RICHEST structural signal.
+       SELECT columns         Reveal output shape
+       GROUP BY               Reveals aggregation granularity
+       ORDER BY               Reveals ranking (DESC) vs chronological (ASC)
+       LIMIT                  Suggests leaderboard or top-N pattern
+       date_trunc()           Indicates time-series aggregation
+       WITH ... AS            CTE names hint at computation pipeline
+
+is_private: Whether the query is private on Dune. (true/false)
+
+is_archived: Whether the query has been archived. (true/false)
+
+owner: Dune username of the query creator.
+
+g1: Domain. Broad analytical domain.
+    Example
+       activity             User behavior, trading patterns, fee revenue, retention
+       defi                 Lending, DEX, staking, derivatives, yield, governance, TVL
+       holders              Token balances, distributions, whale tracking, concentration
+       identity             Address labels, wallet profiles, ENS, multisig, clustering
+       infrastructure       Gas, blocks, contracts, validators, MEV, rollups, oracles
+       nft                  Marketplace, minting, trading, metadata, royalties, rarity
+       bridge               Cross-chain transfers, bridge volume, exploits
+       stablecoins          Supply, peg tracking, cross-chain flows, depeg events
+       tokenomics           Emissions, burns, vesting, airdrops, velocity, buybacks
+       transfers            Token movement, whale alerts, flow graphs
+
+g2: Subdomain. Subdomain within g1, controlled vocabulary per domain.
+    Example
+       activity domains:
+           trading                  Trade volume, bot activity, swaps
+           users                    Active users, new wallets, retention, cohorts
+           fees                     Fee revenue, protocol income
+       defi domains:
+           lending                  Borrow/supply positions, liquidations, rates, utilization
+           dex                      Pool metrics, swap volume, pair registry, LP positions
+           staking                  Deposits, withdrawals, validators, operators
+           derivatives              Funding rates, open interest, options, perpetuals
+           yield                    APR/APY rankings, real yield, farming
+           governance               Proposals, voting, delegation, treasury
+           tvl                      Total value locked tracking over time
+       holders domains:
+           balances                 Token balances, portfolio snapshots, multi-chain
+           distribution             Holder bucketing, concentration indices
+           whale                    Large holder tracking, accumulation trends
+       identity domains:
+           labels                   Address labels, tag lookups, prefix filters
+           wallet_profile           Activity spans, age distribution, interaction graphs
+           tokens                   ERC20 registry, token metadata
+           naming                   ENS, domain registration
+           multisig                 Safe/multisig queue, signers
+       infrastructure domains:
+           gas                      Gas consumption, gas price trends, top spenders
+           blocks                   Block production, block times, rewards
+           contracts                Deployments, interactions, bytecode, active counts
+           validators               Performance, slashing, uptime
+           mev                      MEV extraction, sandwich attacks, bot profit
+           rollup                   Batch submissions, cost comparison, TPS
+           oracles                  Price feed status, deviation monitoring
+           mempool                  Pending transactions, gas price queue
+           transactions             Transaction volume, daily counts
+           blobs                    Blob gas market, EIP-4844
+           inscriptions             Inscription volume, fees
+           account_abstraction      ERC-4337 user operations, paymasters
+       nft domains:
+           marketplace              Floor prices, sales history, collection stats, royalties
+           minting                  Mint events, mint tracker
+           trading                  Trader profit, wash trading detection
+           holders                  Holder counts, overlap analysis
+           metadata                 Rarity scores, trait analysis
+       bridge domains:
+           crosschain               Volume, daily flows, transaction history
+           security                 Exploit events, vulnerability tracking
+       stablecoins domains:
+           supply                   Total supply, daily mints/burns, market share
+           peg                      Peg deviation tracking, depeg events
+           flow                     Cross-chain stablecoin flows
+       tokenomics domains:
+           vesting                  Unlock schedules, cliff events
+           burns                    Daily burn amounts, cumulative burns
+           emissions                Supply inflation, emission schedules
+           airdrops                 Eligibility checks, distribution summaries
+           velocity                 Token velocity metrics
+           launches                 New token deployments
+           buybacks                 Buyback events, treasury purchases
+           analytics                Correlation analysis, custom metrics
+           supply                   Supply breakdowns, circulating vs total
+       transfers domains:
+           whale                    Large holder movement alerts
+           flow                     Transfer graphs, flow analysis
+
+g3: TARGET VARIABLE. Canonical Tool Identity.
+    The primary classification target. Describes WHAT the query computes structurally, stripped of all protocol/chain/token specifics.
+
+    Rules:
+        - 4 to 8 words, snake_case
+        - Ends with structural suffix: _timeseries, _snapshot, _leaderboard, _series, _registry, _lookup
+        - Two queries doing the same structural computation on different protocols MUST receive the same g3 label.
+        - NEVER contains:
+            protocols: NEVER include ANY protocol, project, or dApp name. The label must be protocol-agnostic — if swapping the protocol changes the label, the label is wrong.
+              examples: uniswap, compound, aave, lido, eigenlayer, maker, ...
+            chains: NEVER include ANY blockchain or network name. The label must be chain-agnostic — the same structural query on Ethereum vs Solana must produce the same g3.
+              examples: ethereum, arbitrum, base, solana, polygon, optimism, ...
+            tokens: NEVER include ANY token name, ticker symbol, or wrapped variant. The label describes the structure of the computation, not what asset it operates on.
+              examples: eth, btc, usdc, dai, weth, steth, ...
+            other: NEVER include addresses (0x...), specific dates, block numbers, version numbers (v1, v2, v3), or any other instance-specific identifier.
+
+    Good examples:
+        weekly_unique_borrowers_timeseries
+        daily_transfer_volume_timeseries
+        daily_borrow_volume_by_token_timeseries
+        weekly_unique_attestation_timeseries
+        daily_auction_discount_timeseries
+        top_holders_with_netflow_breakdown
+        active_lending_positions_with_collateral_ratio
+        address_labels_by_prefix_filter
+        staking_strategy_list_with_token_metadata
+        collection_floor_price_timeseries
+        bridge_volume_by_chain_pair_snapshot
+        validator_performance_leaderboard
+        flash_loan_events_series
+        token_contract_registry
+        airdrop_eligibility_lookup
+
+    Bad examples:
+        compound_weekly_borrowers                     — contains protocol name
+        dai_daily_transfer_volume                     — contains token name
+        ethereum_gas_tracker                          — contains chain name
+        dutchx_dai_weth_discount                      — contains protocol AND token names
+        query_about_lending                           — describes topic not structure
+        data                                          — too vague, under min_words
+
+g4: Output Column Groups. Pipe-delimited list of output column groups at an abstract level, stripped of protocol-specific naming.
+    Examples:
+        week|unique_borrowers
+        day|transfer_volume
+        month|token|usd_volume
+        week|unique_attestations
+        date|auction_price|market_price|discount_pct
+        address|amount|percent|netflow
+        time|sender|receiver|amount
+        pool|supply_rate|borrow_rate|utilization|supplied|borrowed
+
+g5: Output Shape. Structural output shape. Must be consistent with g3 suffix.
+       Example
+       time_series      g3 suffix: _timeseries      Rows ordered by time, aggregated at regular intervals (daily, hourly, weekly)
+       snapshot         g3 suffix: _snapshot        Point-in-time state, no time ordering, current values
+       leaderboard      g3 suffix: _leaderboard     Ranked list ordered by a metric DESC, usually with LIMIT
+       series           g3 suffix: _series          Chronological event log, individual records ordered by time (not aggregated)
+       registry         g3 suffix: _registry        Catalog or lookup table of entities with metadata
+       lookup           g3 suffix: _lookup          Single-record fetch for a specific entity (address, name, etc.)
+
+DEDUPLICATION RULE: Two queries are considered duplicates in the taxonomy if and only if their g3 AND g4 are both identical. Queries with the same g3 but different g4 are distinct tools. Queries with different g1/g2 but identical g3+g4 are duplicates.
+
+SIGNAL STRENGTH:
+    Strongest:  query_sql
+    Strong:     g3, g4, g5
+    Medium:     g1, g2, tags
+    Weakest:    name, description
