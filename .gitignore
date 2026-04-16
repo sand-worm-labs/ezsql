@@ -3,3 +3,8 @@
 __pycache__/
 *.pyc
 *.parquet
+popular_pairs.csv
+popular_tables.csv
+popular_triples.csv
+popular_quads.csv
+popular_quints.csv
