@@ -8,7 +8,7 @@ install:
 migrate:
 	PYTHONPATH=. poetry run python db/run.py up
 
-setup: db-down db-up migrate write clean  extract
+setup: db-down db-up migrate write clean
 
 db-up:
 	docker compose up -d 

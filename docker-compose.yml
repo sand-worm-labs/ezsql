@@ -1,16 +1,28 @@
+# ============================================================
+# ⬢ docker-compose.yml — Grimoire Queries Stack
+# ============================================================
+
 services:
+
+  # ── Queries DB (pgvector / Postgres 16) ───────────────────
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: sandworm
       POSTGRES_PASSWORD: sandworm
       POSTGRES_DB: queries
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sandworm -d queries"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # ── DB GUI ────────────────────────────────────────────────
   dbgate:
     image: dbgate/dbgate
     restart: unless-stopped
@@ -26,7 +38,9 @@ services:
       DATABASE_postgres: queries
       ENGINE_postgres: postgres@dbgate-plugin-postgres
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
+# ── Volumes ───────────────────────────────────────────────
 volumes:
   pgdata:
