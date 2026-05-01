@@ -1,46 +1,50 @@
-# ============================================================
-# ⬢ docker-compose.yml — Grimoire Queries Stack
-# ============================================================
+name: grimoire
+
+networks:
+  grimoire-net:
+    driver: bridge
+
+volumes:
+  grimoire-pgdata:
 
 services:
-
-  # ── Queries DB (pgvector / Postgres 16) ───────────────────
   postgres:
+    container_name: grimoire-postgres
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "54321:5432"
     environment:
       POSTGRES_USER: sandworm
       POSTGRES_PASSWORD: sandworm
       POSTGRES_DB: queries
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - grimoire-pgdata:/var/lib/postgresql/data
+    networks:
+      - grimoire-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sandworm -d queries"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # ── DB GUI ────────────────────────────────────────────────
   dbgate:
-    image: dbgate/dbgate
+    container_name: grimoire-dbgate
+    image: dbgate/dbgate:alpine
     restart: unless-stopped
     ports:
-      - "5433:3000"
+      - "3120:3000"
     environment:
       CONNECTIONS: postgres
-      LABEL_postgres: Sandworm DB
-      SERVER_postgres: postgres
+      LABEL_postgres: Grimoire DB
+      SERVER_postgres: grimoire-postgres
       PORT_postgres: 5432
       USER_postgres: sandworm
       PASSWORD_postgres: sandworm
       DATABASE_postgres: queries
       ENGINE_postgres: postgres@dbgate-plugin-postgres
+    networks:
+      - grimoire-net
     depends_on:
       postgres:
         condition: service_healthy
-
-# ── Volumes ───────────────────────────────────────────────
-volumes:
-  pgdata:

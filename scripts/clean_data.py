@@ -7,7 +7,7 @@ load_dotenv()
 
 def count(session) -> int:
     """Helper to get current row count using the active session."""
-    result = session.exec(text('SELECT COUNT(*) FROM "QUERIES"'))
+    result = session.exec(text('SELECT COUNT(*) FROM "queries"'))
     return result.one()[0]
 
 def clean():
@@ -18,8 +18,8 @@ def clean():
             (
                 "Dedupe by query_id",
                 """
-                DELETE FROM "QUERIES" a
-                USING "QUERIES" b
+                DELETE FROM "queries" a
+                USING "queries" b
                 WHERE a.query_id = b.query_id
                   AND a.ctid > b.ctid
                 """
@@ -27,21 +27,21 @@ def clean():
             (
                 "Dedupe by query_sql",
                 """
-                CREATE INDEX IF NOT EXISTS idx_queries_sql_hash ON "QUERIES" (MD5(query_sql));
+                CREATE INDEX IF NOT EXISTS idx_queries_sql_hash ON "queries" (MD5(query_sql));
                 
                 CREATE TABLE "QUERIES_CLEAN" AS
                 SELECT DISTINCT ON (MD5(query_sql)) *
-                FROM "QUERIES"
+                FROM "queries"
                 ORDER BY MD5(query_sql), ctid;
 
-                DROP TABLE "QUERIES";
-                ALTER TABLE "QUERIES_CLEAN" RENAME TO "QUERIES";
+                DROP TABLE "queries";
+                ALTER TABLE "QUERIES_CLEAN" RENAME TO "queries";
                 """
             ),
             (
                 "Drop null/empty/short SQL",
                 """
-                DELETE FROM "QUERIES"
+                DELETE FROM "queries"
                 WHERE query_sql IS NULL
                    OR TRIM(query_sql) = ''
                    OR LENGTH(TRIM(query_sql)) < 10
@@ -50,7 +50,7 @@ def clean():
             (
                 "Normalize owner, name, description",
                 """
-                UPDATE "QUERIES" SET
+                UPDATE "queries" SET
                   owner       = LOWER(TRIM(owner)),
                   name        = LOWER(TRIM(REGEXP_REPLACE(name, '(Copy of\\s*(\\(#\\d+\\))?\\s*)+', '', 'i'))),
                   description = CASE
@@ -62,7 +62,7 @@ def clean():
             (
                 "Null out garbage names",
                 """
-                UPDATE "QUERIES"
+                UPDATE "queries"
                 SET name = NULL
                 WHERE LOWER(TRIM(name)) IN ('new query', 'untitled', 'query', 'test', 'unnamed query')
                 """
@@ -70,7 +70,7 @@ def clean():
             (
                 "Final purge of null SQL",
                 """
-                DELETE FROM "QUERIES"
+                DELETE FROM "queries"
                 WHERE query_sql IS NULL 
                    OR TRIM(query_sql) = ''
                 """
