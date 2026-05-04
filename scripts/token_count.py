@@ -1,5 +1,5 @@
 """
-Count tokens across all rows in the QUERIES table.
+Count tokens across all rows in the queries table.
 Uses tiktoken (cl100k_base) if available, else falls back to len(text)/4 estimation.
 """
 from dotenv import load_dotenv
@@ -26,7 +26,7 @@ def run():
     cols_sql = ", ".join(f'"{c}"' for c in TEXT_COLUMNS)
     with get_session() as session:
         rows = session.exec(
-            text(f'SELECT {cols_sql} FROM "QUERIES"')
+            text(f'SELECT {cols_sql} FROM "queries"')
         ).all()
 
     print(f"Token counting method : {TOKEN_METHOD}")
